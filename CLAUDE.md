@@ -49,7 +49,8 @@ The bot requires a `DISCORD_BOT_TOKEN` environment variable. Use `.env.example` 
 
 - **`/ping` command**: Simple ping-pong response
 - **`/peepee` command**: Interactive inspection command with:
-  - Random funny phrases from preset array
+  - Random funny definitions in format: "{username} {definition} peepee!"
+  - 20 trendy and humorous size definitions
   - Blue embed response with user's avatar as thumbnail
   - Random server emoji reaction
 - Graceful shutdown on CTRL+C
@@ -60,7 +61,7 @@ The bot requires a `DISCORD_BOT_TOKEN` environment variable. Use `.env.example` 
 ### Core Functions
 - **`getCommands()`**: Returns list of application commands for registration
 - **`registerCommands()`**: Handles command registration with Discord API
-- **`getRandomPhrase()`**: Returns random phrase from preset array
+- **`getRandomPhrase(username)`**: Returns formatted phrase with username and random definition
 - **`getUserAvatarURL()`**: Gets user avatar with fallback to default
 - **`createPeepeeEmbed()`**: Creates embed response for peepee command
 - **`getRandomEmoji()`**: Selects random emoji from server's emoji list with fallback
@@ -75,4 +76,5 @@ The bot requires a `DISCORD_BOT_TOKEN` environment variable. Use `.env.example` 
 - **`main_test.go`**: Comprehensive test suite with unit tests and benchmarks
 - **`SessionInterface`**: Interface for mocking Discord session in tests
 - **`MockSession`**: Test mock implementing SessionInterface
-- Tests cover: command registration, phrase generation, embed creation, avatar handling, and command handlers
+- Tests cover: command registration, username phrase formatting, embed creation, avatar handling, and command handlers
+- **`peepeeDefinitions`**: 20 trendy size definitions for variety and humor

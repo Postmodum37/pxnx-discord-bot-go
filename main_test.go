@@ -42,23 +42,36 @@ func TestGetCommands(t *testing.T) {
 }
 
 func TestGetRandomPhrase(t *testing.T) {
-	phrase := getRandomPhrase()
+	username := "testuser"
+	phrase := getRandomPhrase(username)
 	
 	if phrase == "" {
 		t.Error("Expected non-empty phrase, got empty string")
 	}
 	
-	// Check if the phrase is one of the expected phrases
+	// Check if the phrase starts with username and ends with "peepee!"
+	if !strings.HasPrefix(phrase, username) {
+		t.Errorf("Expected phrase to start with '%s', got '%s'", username, phrase)
+	}
+	
+	if !strings.HasSuffix(phrase, "peepee!") {
+		t.Errorf("Expected phrase to end with 'peepee!', got '%s'", phrase)
+	}
+	
+	// Check if the middle part contains one of the definitions
+	middlePart := strings.TrimPrefix(phrase, username+" ")
+	middlePart = strings.TrimSuffix(middlePart, " peepee!")
+	
 	found := false
-	for _, expected := range peepeePhrasces {
-		if phrase == expected {
+	for _, definition := range peepeeDefinitions {
+		if middlePart == definition {
 			found = true
 			break
 		}
 	}
 	
 	if !found {
-		t.Errorf("Phrase '%s' not found in expected phrases", phrase)
+		t.Errorf("Definition '%s' not found in expected definitions", middlePart)
 	}
 }
 
@@ -116,17 +129,29 @@ func TestCreatePeepeeEmbed(t *testing.T) {
 		}
 	}
 	
-	// Check if description is one of the expected phrases
+	// Check if description follows the expected format: "username definition peepee!"
+	if !strings.HasPrefix(embed.Description, user.Username) {
+		t.Errorf("Expected description to start with '%s', got '%s'", user.Username, embed.Description)
+	}
+	
+	if !strings.HasSuffix(embed.Description, "peepee!") {
+		t.Errorf("Expected description to end with 'peepee!', got '%s'", embed.Description)
+	}
+	
+	// Check if the middle part contains one of the definitions
+	middlePart := strings.TrimPrefix(embed.Description, user.Username+" ")
+	middlePart = strings.TrimSuffix(middlePart, " peepee!")
+	
 	found := false
-	for _, expected := range peepeePhrasces {
-		if embed.Description == expected {
+	for _, definition := range peepeeDefinitions {
+		if middlePart == definition {
 			found = true
 			break
 		}
 	}
 	
 	if !found {
-		t.Errorf("Description '%s' not found in expected phrases", embed.Description)
+		t.Errorf("Definition '%s' not found in expected definitions", middlePart)
 	}
 }
 
@@ -143,14 +168,14 @@ func TestGetRandomEmoji(t *testing.T) {
 	}
 }
 
-func TestPeepeePhrasesNotEmpty(t *testing.T) {
-	if len(peepeePhrasces) == 0 {
-		t.Error("Expected peepeePhrasces to contain phrases, got empty slice")
+func TestPeepeeDefinitionsNotEmpty(t *testing.T) {
+	if len(peepeeDefinitions) == 0 {
+		t.Error("Expected peepeeDefinitions to contain definitions, got empty slice")
 	}
 	
-	for i, phrase := range peepeePhrasces {
-		if phrase == "" {
-			t.Errorf("Expected non-empty phrase at index %d", i)
+	for i, definition := range peepeeDefinitions {
+		if definition == "" {
+			t.Errorf("Expected non-empty definition at index %d", i)
 		}
 	}
 }
@@ -215,8 +240,10 @@ func TestHandlePeepeeCommand(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkGetRandomPhrase(b *testing.B) {
+	username := "benchuser"
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		getRandomPhrase()
+		getRandomPhrase(username)
 	}
 }
 

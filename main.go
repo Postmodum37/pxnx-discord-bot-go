@@ -76,22 +76,34 @@ func ready(s *discordgo.Session, event *discordgo.Ready) {
 	}
 }
 
-var peepeePhrasces = []string{
-	"Inspection complete! That's a tiny little peepee right there!",
-	"Well well well, what do we have here? A microscopic peepee!",
-	"*adjusts glasses* Yep, that's definitely a smol peepee!",
-	"Breaking news: Local person has itty bitty peepee!",
-	"The results are in... it's a wee little peepee!",
-	"After careful examination, I can confirm: small peepee energy!",
-	"*taps clipboard* Peepee size: Extra Small",
-	"Congratulations! You've got yourself a pocket-sized peepee!",
-	"The peepee inspection has concluded: adorably tiny!",
+var peepeeDefinitions = []string{
+	"has a certified micro",
+	"is packing a pocket-sized",
+	"owns a travel-friendly",
+	"rocks a fun-sized",
+	"sports a bite-sized",
+	"carries a portable",
+	"features a mini",
+	"displays a compact",
+	"showcases a teeny-weeny",
+	"presents a smol bean",
+	"boasts a keychain-sized",
+	"flaunts a coin-sized",
+	"exhibits a thimble-sized",
+	"demonstrates a whisper-quiet",
+	"manifests an itty-bitty",
+	"reveals a microscopic",
+	"unveils a nano-scale",
+	"shows off a barely-there",
+	"owns a limited edition tiny",
+	"has equipped a stealth mode",
 }
 
-// getRandomPhrase returns a random phrase from the peepee phrases
-func getRandomPhrase() string {
+// getRandomPhrase returns a random phrase with username from the peepee definitions
+func getRandomPhrase(username string) string {
 	rand.Seed(time.Now().UnixNano())
-	return peepeePhrasces[rand.Intn(len(peepeePhrasces))]
+	definition := peepeeDefinitions[rand.Intn(len(peepeeDefinitions))]
+	return fmt.Sprintf("%s %s peepee!", username, definition)
 }
 
 // getUserAvatarURL gets the user's avatar URL with fallback to default
@@ -106,7 +118,7 @@ func getUserAvatarURL(user *discordgo.User) string {
 
 // createPeepeeEmbed creates an embed for the peepee command
 func createPeepeeEmbed(user *discordgo.User) *discordgo.MessageEmbed {
-	randomPhrase := getRandomPhrase()
+	randomPhrase := getRandomPhrase(user.Username)
 	avatarURL := getUserAvatarURL(user)
 	
 	return &discordgo.MessageEmbed{
