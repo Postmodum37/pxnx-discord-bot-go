@@ -1,11 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -141,6 +145,27 @@ var eightBallResponses = []string{
 	"My sources say no",
 	"Outlook not so good",
 	"Very doubtful",
+}
+
+// WeatherData represents the response from OpenWeatherMap API
+type WeatherData struct {
+	Main struct {
+		Temp     float64 `json:"temp"`
+		FeelsLike float64 `json:"feels_like"`
+		Humidity int     `json:"humidity"`
+	} `json:"main"`
+	Weather []struct {
+		Main        string `json:"main"`
+		Description string `json:"description"`
+		Icon        string `json:"icon"`
+	} `json:"weather"`
+	Wind struct {
+		Speed float64 `json:"speed"`
+	} `json:"wind"`
+	Name string `json:"name"`
+	Sys  struct {
+		Country string `json:"country"`
+	} `json:"sys"`
 }
 
 var peepeeDefinitions = []string{
@@ -417,36 +442,139 @@ func handleUserCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 	})
 }
 
+// getWeatherData fetches weather data from OpenWeatherMap API
+func getWeatherData(city string) (*WeatherData, error) {
+	apiKey := os.Getenv("OPENWEATHER_API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("OPENWEATHER_API_KEY environment variable is required")
+	}
+	
+	// URL encode the city name to handle spaces and special characters
+	encodedCity := url.QueryEscape(city)
+	apiURL := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric", encodedCity, apiKey)
+	
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch weather data: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("weather API returned status %d", resp.StatusCode)
+	}
+	
+	var weatherData WeatherData
+	if err := json.NewDecoder(resp.Body).Decode(&weatherData); err != nil {
+		return nil, fmt.Errorf("failed to decode weather data: %w", err)
+	}
+	
+	return &weatherData, nil
+}
+
+// getWeatherIcon returns an appropriate emoji for the weather condition
+func getWeatherIcon(condition string) string {
+	lowerCondition := strings.ToLower(condition)
+	switch {
+	case strings.Contains(lowerCondition, "clear"):
+		return "☀️"
+	case strings.Contains(lowerCondition, "cloud"):
+		return "☁️"
+	case strings.Contains(lowerCondition, "rain"):
+		return "🌧️"
+	case strings.Contains(lowerCondition, "snow"):
+		return "❄️"
+	case strings.Contains(lowerCondition, "thunder"):
+		return "⛈️"
+	case strings.Contains(lowerCondition, "mist") || strings.Contains(lowerCondition, "fog"):
+		return "🌫️"
+	default:
+		return "🌤️"
+	}
+}
+
 // handleWeatherCommand handles the weather slash command
 func handleWeatherCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
 	options := i.ApplicationCommandData().Options
 	city := options[0].StringValue()
 	
-	// This is a mock weather response since we don't have a real API
-	weatherConditions := []string{"Sunny", "Cloudy", "Rainy", "Snowy", "Partly Cloudy", "Stormy"}
-	rand.Seed(time.Now().UnixNano())
-	condition := weatherConditions[rand.Intn(len(weatherConditions))]
-	temp := rand.Intn(35) + 5 // Random temp between 5-40°C
+	weatherData, err := getWeatherData(city)
+	if err != nil {
+		// Return error embed if API call fails
+		errorEmbed := &discordgo.MessageEmbed{
+			Title:       "❌ Weather Error",
+			Description: fmt.Sprintf("Unable to fetch weather data for **%s**", city),
+			Color:       0xe74c3c,
+			Fields: []*discordgo.MessageEmbedField{
+				{
+					Name:  "Error",
+					Value: "City not found or API error. Please check the city name and try again.",
+				},
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: "Powered by OpenWeatherMap",
+			},
+		}
+		
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Embeds: []*discordgo.MessageEmbed{errorEmbed},
+			},
+		})
+	}
+	
+	// Format temperature
+	temp := fmt.Sprintf("%.1f°C", weatherData.Main.Temp)
+	feelsLike := fmt.Sprintf("%.1f°C", weatherData.Main.FeelsLike)
+	
+	// Get weather condition and icon
+	condition := "Unknown"
+	description := "No description available"
+	if len(weatherData.Weather) > 0 {
+		condition = weatherData.Weather[0].Main
+		description = strings.Title(weatherData.Weather[0].Description)
+	}
+	
+	weatherIcon := getWeatherIcon(condition)
+	location := weatherData.Name
+	if weatherData.Sys.Country != "" {
+		location = fmt.Sprintf("%s, %s", weatherData.Name, weatherData.Sys.Country)
+	}
 	
 	embed := &discordgo.MessageEmbed{
-		Title:       fmt.Sprintf("🌤️ Weather in %s", city),
-		Description: fmt.Sprintf("Here's the current weather forecast for **%s**", city),
+		Title:       fmt.Sprintf("%s Weather in %s", weatherIcon, location),
+		Description: description,
 		Color:       0x3498db,
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:   "🌡️ Temperature",
-				Value:  fmt.Sprintf("%d°C", temp),
+				Value:  temp,
 				Inline: true,
 			},
 			{
-				Name:   "☁️ Condition",
-				Value:  condition,
+				Name:   "🤏 Feels Like",
+				Value:  feelsLike,
+				Inline: true,
+			},
+			{
+				Name:   "💧 Humidity",
+				Value:  fmt.Sprintf("%d%%", weatherData.Main.Humidity),
 				Inline: true,
 			},
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "⚠️ This is a mock weather service for demonstration purposes",
+			Text: "Powered by OpenWeatherMap",
 		},
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+	
+	// Add wind information if available
+	if weatherData.Wind.Speed > 0 {
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:   "💨 Wind Speed",
+			Value:  fmt.Sprintf("%.1f m/s", weatherData.Wind.Speed),
+			Inline: true,
+		})
 	}
 	
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

@@ -22,8 +22,9 @@ go mod tidy          # Download and organize dependencies
 
 ### Running the bot
 ```bash
-# Set environment variable (copy from .env.example)
+# Set environment variables (copy from .env.example)
 export DISCORD_BOT_TOKEN=your_bot_token_here
+export OPENWEATHER_API_KEY=your_openweathermap_api_key_here
 go run main.go       # Run the bot
 ```
 
@@ -43,16 +44,21 @@ go test -cover      # Run tests with coverage report
 
 ## Environment Configuration
 
-The bot requires a `DISCORD_BOT_TOKEN` environment variable. Use `.env.example` as a template for creating your environment configuration.
+The bot requires the following environment variables:
+- `DISCORD_BOT_TOKEN`: Your Discord bot token
+- `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key (get one free at https://openweathermap.org/api)
+
+Use `.env.example` as a template for creating your environment configuration.
 
 ## Bot Features
 
 - **`/ping` command**: Simple ping-pong response
-- **`/peepee` command**: Interactive inspection command with:
-  - Random funny definitions in format: "{username} {definition} peepee!"
-  - 20 trendy and humorous size definitions
-  - Blue embed response with user's avatar as thumbnail
-  - Random server emoji reaction
+- **`/peepee` command**: Interactive inspection command with random funny definitions and emoji reactions
+- **`/8ball` command**: Magic 8-ball with 20 classic responses
+- **`/coinflip` command**: Random heads/tails coin flip
+- **`/server` command**: Display server information (member count, creation date, etc.)
+- **`/user` command**: Show user profile information with optional target parameter
+- **`/weather` command**: Real weather data powered by OpenWeatherMap API
 - Graceful shutdown on CTRL+C
 - Automatic command registration on bot startup
 
@@ -70,6 +76,13 @@ The bot requires a `DISCORD_BOT_TOKEN` environment variable. Use `.env.example` 
 - **`handlePingCommand()`**: Handles `/ping` command (testable with interface)
 - **`handlePeepeeCommand()`**: Handles `/peepee` command embed creation (testable)
 - **`handlePeepeeCommandWithReaction()`**: Full `/peepee` command with emoji reactions
+- **`handle8BallCommand()`**: Handles `/8ball` command with random responses
+- **`handleCoinFlipCommand()`**: Handles `/coinflip` command
+- **`handleServerCommand()`**: Handles `/server` command for guild information
+- **`handleUserCommand()`**: Handles `/user` command for user profiles
+- **`handleWeatherCommand()`**: Handles `/weather` command with OpenWeatherMap API
+- **`getWeatherData()`**: Fetches real weather data from OpenWeatherMap
+- **`getWeatherIcon()`**: Maps weather conditions to appropriate emojis
 - **`interactionCreate()`**: Main Discord event handler routing commands
 
 ### Testing
