@@ -10,34 +10,39 @@ import (
 func TestGetCommands(t *testing.T) {
 	commands := getCommands()
 	
-	if len(commands) != 2 {
-		t.Errorf("Expected 2 commands, got %d", len(commands))
+	if len(commands) != 7 {
+		t.Errorf("Expected 7 commands, got %d", len(commands))
 	}
 	
-	// Test ping command
-	pingFound := false
-	peepeeFound := false
+	// Test that all expected commands are present
+	expectedCommands := map[string]string{
+		"ping":     "Responds with Pong!",
+		"peepee":   "PeePee Inspection Time!",
+		"8ball":    "Ask the magic 8-ball a question",
+		"coinflip": "Flip a coin and choose heads or tails",
+		"server":   "Provides information about the server",
+		"user":     "Replies with user info!",
+		"weather":  "Get the weather forecast for a city",
+	}
+	
+	foundCommands := make(map[string]bool)
 	
 	for _, cmd := range commands {
-		switch cmd.Name {
-		case "ping":
-			pingFound = true
-			if cmd.Description != "Responds with Pong!" {
-				t.Errorf("Expected ping description 'Responds with Pong!', got '%s'", cmd.Description)
+		if expectedDesc, exists := expectedCommands[cmd.Name]; exists {
+			foundCommands[cmd.Name] = true
+			if cmd.Description != expectedDesc {
+				t.Errorf("Expected %s description '%s', got '%s'", cmd.Name, expectedDesc, cmd.Description)
 			}
-		case "peepee":
-			peepeeFound = true
-			if cmd.Description != "PeePee Inspection Time!" {
-				t.Errorf("Expected peepee description 'PeePee Inspection Time!', got '%s'", cmd.Description)
-			}
+		} else {
+			t.Errorf("Unexpected command found: %s", cmd.Name)
 		}
 	}
 	
-	if !pingFound {
-		t.Error("Ping command not found")
-	}
-	if !peepeeFound {
-		t.Error("Peepee command not found")
+	// Check that all expected commands were found
+	for cmdName := range expectedCommands {
+		if !foundCommands[cmdName] {
+			t.Errorf("Command '%s' not found", cmdName)
+		}
 	}
 }
 
