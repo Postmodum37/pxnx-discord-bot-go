@@ -16,6 +16,18 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Embed color constants
+const (
+	ColorBlue   = 0x3498db
+	ColorPurple = 0x9b59b6
+	ColorOrange = 0xf39c12
+	ColorGreen  = 0x2ecc71
+	ColorRed    = 0xe74c3c
+)
+
+// Initialize random seed once
+var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+
 func main() {
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
@@ -52,6 +64,26 @@ func main() {
 	fmt.Println("Gracefully shutting down.")
 }
 
+// createStringOption creates a string application command option
+func createStringOption(name, description string, required bool) *discordgo.ApplicationCommandOption {
+	return &discordgo.ApplicationCommandOption{
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        name,
+		Description: description,
+		Required:    required,
+	}
+}
+
+// createUserOption creates a user application command option
+func createUserOption(name, description string, required bool) *discordgo.ApplicationCommandOption {
+	return &discordgo.ApplicationCommandOption{
+		Type:        discordgo.ApplicationCommandOptionUser,
+		Name:        name,
+		Description: description,
+		Required:    required,
+	}
+}
+
 // getCommands returns the list of application commands for the bot
 func getCommands() []*discordgo.ApplicationCommand {
 	return []*discordgo.ApplicationCommand{
@@ -67,12 +99,7 @@ func getCommands() []*discordgo.ApplicationCommand {
 			Name:        "8ball",
 			Description: "Ask the magic 8-ball a question",
 			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "question",
-					Description: "Your question for the magic 8-ball",
-					Required:    true,
-				},
+				createStringOption("question", "Your question for the magic 8-ball", true),
 			},
 		},
 		{
@@ -87,24 +114,14 @@ func getCommands() []*discordgo.ApplicationCommand {
 			Name:        "user",
 			Description: "Replies with user info!",
 			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionUser,
-					Name:        "target",
-					Description: "The user to get info about (optional)",
-					Required:    false,
-				},
+				createUserOption("target", "The user to get info about (optional)", false),
 			},
 		},
 		{
 			Name:        "weather",
 			Description: "Get the weather forecast for a city",
 			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "city",
-					Description: "City name to get weather for",
-					Required:    true,
-				},
+				createStringOption("city", "City name to get weather for", true),
 			},
 		},
 	}
@@ -199,8 +216,7 @@ var peepeeDefinitions = []string{
 
 // getRandomPhrase returns a random phrase with username from the peepee definitions
 func getRandomPhrase(username string) string {
-	rand.Seed(time.Now().UnixNano())
-	definition := peepeeDefinitions[rand.Intn(len(peepeeDefinitions))]
+	definition := peepeeDefinitions[rng.Intn(len(peepeeDefinitions))]
 	return fmt.Sprintf("%s %s peepee!", username, definition)
 }
 
@@ -214,6 +230,21 @@ func getUserAvatarURL(user *discordgo.User) string {
 	return avatarURL
 }
 
+// createErrorEmbed creates a standardized error embed
+func createErrorEmbed(title, description, errorMsg string) *discordgo.MessageEmbed {
+	return &discordgo.MessageEmbed{
+		Title:       title,
+		Description: description,
+		Color:       ColorRed,
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name:  "Error",
+				Value: errorMsg,
+			},
+		},
+	}
+}
+
 // createPeepeeEmbed creates an embed for the peepee command
 func createPeepeeEmbed(user *discordgo.User) *discordgo.MessageEmbed {
 	randomPhrase := getRandomPhrase(user.Username)
@@ -222,7 +253,7 @@ func createPeepeeEmbed(user *discordgo.User) *discordgo.MessageEmbed {
 	return &discordgo.MessageEmbed{
 		Title:       "PeePee Inspection Time",
 		Description: randomPhrase,
-		Color:       0x3498db, // Blue color
+		Color:       ColorBlue,
 		Thumbnail: &discordgo.MessageEmbedThumbnail{
 			URL: avatarURL,
 		},
@@ -238,7 +269,7 @@ func getRandomEmoji(s *discordgo.Session, guildID string) string {
 	if err != nil || len(emojis) == 0 {
 		return "🔍" // fallback emoji
 	}
-	randomEmoji := emojis[rand.Intn(len(emojis))]
+	randomEmoji := emojis[rng.Intn(len(emojis))]
 	return randomEmoji.APIName()
 }
 
@@ -295,8 +326,7 @@ func handlePeepeeCommandWithReaction(s *discordgo.Session, i *discordgo.Interact
 
 // get8BallResponse returns a random 8-ball response
 func get8BallResponse() string {
-	rand.Seed(time.Now().UnixNano())
-	return eightBallResponses[rand.Intn(len(eightBallResponses))]
+	return eightBallResponses[rng.Intn(len(eightBallResponses))]
 }
 
 // handle8BallCommand handles the 8ball slash command
@@ -307,7 +337,7 @@ func handle8BallCommand(s SessionInterface, i *discordgo.InteractionCreate) erro
 	
 	embed := &discordgo.MessageEmbed{
 		Title: "🎱 Magic 8-Ball",
-		Color: 0x9b59b6,
+		Color: ColorPurple,
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:  "Question",
@@ -330,16 +360,15 @@ func handle8BallCommand(s SessionInterface, i *discordgo.InteractionCreate) erro
 
 // handleCoinFlipCommand handles the coinflip slash command
 func handleCoinFlipCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
-	rand.Seed(time.Now().UnixNano())
 	result := "Heads"
-	if rand.Intn(2) == 1 {
+	if rng.Intn(2) == 1 {
 		result = "Tails"
 	}
 	
 	embed := &discordgo.MessageEmbed{
 		Title:       "🪙 Coin Flip",
 		Description: fmt.Sprintf("The coin landed on **%s**!", result),
-		Color:       0xf39c12,
+		Color:       ColorOrange,
 	}
 	
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -363,7 +392,7 @@ func handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) e
 	embed := &discordgo.MessageEmbed{
 		Title:       fmt.Sprintf("📊 %s Server Info", guild.Name),
 		Description: fmt.Sprintf("Here's some information about **%s**", guild.Name),
-		Color:       0x2ecc71,
+		Color:       ColorGreen,
 		Thumbnail: &discordgo.MessageEmbedThumbnail{
 			URL: guild.IconURL("256"),
 		},
@@ -417,7 +446,7 @@ func handleUserCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 	embed := &discordgo.MessageEmbed{
 		Title:       fmt.Sprintf("👤 %s's Profile", targetUser.Username),
 		Description: fmt.Sprintf("Here's some information about **%s**", targetUser.Mention()),
-		Color:       0xe74c3c,
+		Color:       ColorRed,
 		Thumbnail: &discordgo.MessageEmbedThumbnail{
 			URL: avatarURL,
 		},
@@ -506,19 +535,13 @@ func handleWeatherCommand(s SessionInterface, i *discordgo.InteractionCreate) er
 	weatherData, err := getWeatherData(city)
 	if err != nil {
 		// Return error embed if API call fails
-		errorEmbed := &discordgo.MessageEmbed{
-			Title:       "❌ Weather Error",
-			Description: fmt.Sprintf("Unable to fetch weather data for **%s**", city),
-			Color:       0xe74c3c,
-			Fields: []*discordgo.MessageEmbedField{
-				{
-					Name:  "Error",
-					Value: "City not found or API error. Please check the city name and try again.",
-				},
-			},
-			Footer: &discordgo.MessageEmbedFooter{
-				Text: "Powered by OpenWeatherMap",
-			},
+		errorEmbed := createErrorEmbed(
+			"❌ Weather Error",
+			fmt.Sprintf("Unable to fetch weather data for **%s**", city),
+			"City not found or API error. Please check the city name and try again.",
+		)
+		errorEmbed.Footer = &discordgo.MessageEmbedFooter{
+			Text: "Powered by OpenWeatherMap",
 		}
 		
 		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -550,7 +573,7 @@ func handleWeatherCommand(s SessionInterface, i *discordgo.InteractionCreate) er
 	embed := &discordgo.MessageEmbed{
 		Title:       fmt.Sprintf("%s Weather in %s", weatherIcon, location),
 		Description: description,
-		Color:       0x3498db,
+		Color:       ColorBlue,
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:   "🌡️ Temperature",
