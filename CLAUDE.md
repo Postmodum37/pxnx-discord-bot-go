@@ -22,10 +22,18 @@ go mod tidy          # Download and organize dependencies
 
 ### Running the bot
 ```bash
-# Set environment variables (copy from .env.example)
+# Copy .env.example to .env and add your tokens
+cp .env.example .env
+# Edit .env with your actual tokens
+# Then run the bot (it will automatically load .env)
+go run main.go
+```
+
+Alternatively, you can set environment variables manually:
+```bash
 export DISCORD_BOT_TOKEN=your_bot_token_here
 export OPENWEATHER_API_KEY=your_openweathermap_api_key_here
-go run main.go       # Run the bot
+go run main.go
 ```
 
 ### Building
@@ -48,7 +56,7 @@ The bot requires the following environment variables:
 - `DISCORD_BOT_TOKEN`: Your Discord bot token
 - `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key (get one free at https://openweathermap.org/api)
 
-Use `.env.example` as a template for creating your environment configuration.
+The bot automatically loads environment variables from a `.env` file if present. Copy `.env.example` to `.env` and add your actual tokens, or set the environment variables manually.
 
 ## Bot Features
 
