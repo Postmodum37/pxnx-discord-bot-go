@@ -26,6 +26,17 @@ func createUserOption(name, description string, required bool) *discordgo.Applic
 	}
 }
 
+// createStringChoiceOption creates a string application command option with choices
+func createStringChoiceOption(name, description string, required bool, choices []*discordgo.ApplicationCommandOptionChoice) *discordgo.ApplicationCommandOption {
+	return &discordgo.ApplicationCommandOption{
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        name,
+		Description: description,
+		Required:    required,
+		Choices:     choices,
+	}
+}
+
 // GetCommands returns the list of application commands for the bot
 func GetCommands() []*discordgo.ApplicationCommand {
 	return []*discordgo.ApplicationCommand{
@@ -64,6 +75,20 @@ func GetCommands() []*discordgo.ApplicationCommand {
 			Description: "Get the weather forecast for a city",
 			Options: []*discordgo.ApplicationCommandOption{
 				createStringOption("city", "City name to get weather for", true),
+				createStringChoiceOption("duration", "Weather forecast duration", false, []*discordgo.ApplicationCommandOptionChoice{
+					{
+						Name:  "Current Weather",
+						Value: "current",
+					},
+					{
+						Name:  "1-Day Forecast",
+						Value: "1-day",
+					},
+					{
+						Name:  "5-Day Forecast",
+						Value: "5-day",
+					},
+				}),
 			},
 		},
 	}

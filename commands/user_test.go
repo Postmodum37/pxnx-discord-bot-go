@@ -2,8 +2,6 @@ package commands
 
 import (
 	"testing"
-
-	"pxnx-discord-bot/testutils"
 )
 
 func TestHandleUserCommand(t *testing.T) {

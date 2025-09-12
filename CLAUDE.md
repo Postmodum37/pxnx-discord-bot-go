@@ -103,7 +103,7 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **`/coinflip` command**: Random heads/tails coin flip
 - **`/server` command**: Display server information (member count, creation date, etc.)
 - **`/user` command**: Show user profile information with optional target parameter
-- **`/weather` command**: Real weather data powered by OpenWeatherMap API
+- **`/weather` command**: Real weather data powered by OpenWeatherMap API with support for current weather, 1-day, and 5-day forecasts
 - Graceful shutdown on CTRL+C
 - Manual command registration with `--register-commands` flag (includes cleanup of old commands)
 - Fast startup without automatic command registration

@@ -108,7 +108,7 @@ func TestGetCommands(t *testing.T) {
 		"coinflip": {"Flip a coin and choose heads or tails", false, 0},
 		"server":   {"Provides information about the server", false, 0},
 		"user":     {"Replies with user info!", true, 1},
-		"weather":  {"Get the weather forecast for a city", true, 1},
+		"weather":  {"Get the weather forecast for a city", true, 2},
 	}
 
 	foundCommands := make(map[string]bool)
@@ -186,18 +186,35 @@ func TestGetCommandsOptionsValidation(t *testing.T) {
 			}
 
 		case "weather":
-			if len(cmd.Options) != 1 {
-				t.Errorf("weather command should have 1 option, got %d", len(cmd.Options))
+			if len(cmd.Options) != 2 {
+				t.Errorf("weather command should have 2 options, got %d", len(cmd.Options))
 			} else {
-				option := cmd.Options[0]
-				if option.Name != "city" {
-					t.Errorf("weather option should be named 'city', got '%s'", option.Name)
+				// Test city option (required)
+				cityOption := cmd.Options[0]
+				if cityOption.Name != "city" {
+					t.Errorf("weather first option should be named 'city', got '%s'", cityOption.Name)
 				}
-				if option.Type != discordgo.ApplicationCommandOptionString {
-					t.Errorf("weather option should be string type, got %v", option.Type)
+				if cityOption.Type != discordgo.ApplicationCommandOptionString {
+					t.Errorf("city option should be string type, got %v", cityOption.Type)
 				}
-				if !option.Required {
-					t.Error("weather city option should be required")
+				if !cityOption.Required {
+					t.Error("city option should be required")
+				}
+				
+				// Test duration option (optional)
+				durationOption := cmd.Options[1]
+				if durationOption.Name != "duration" {
+					t.Errorf("weather second option should be named 'duration', got '%s'", durationOption.Name)
+				}
+				if durationOption.Type != discordgo.ApplicationCommandOptionString {
+					t.Errorf("duration option should be string type, got %v", durationOption.Type)
+				}
+				if durationOption.Required {
+					t.Error("duration option should not be required")
+				}
+				// Check choices
+				if len(durationOption.Choices) != 3 {
+					t.Errorf("duration option should have 3 choices, got %d", len(durationOption.Choices))
 				}
 			}
 		}
