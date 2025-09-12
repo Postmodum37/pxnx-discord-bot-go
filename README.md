@@ -100,11 +100,15 @@ go test -cover      # Run tests with coverage report
 ```
 
 ### Architecture
-- **Single-file structure**: The entire bot logic is contained in `main.go`
+- **Modular structure**: Organized into packages for better maintainability
+  - `bot/` - Core bot initialization and Discord session management
+  - `commands/` - Individual command handlers (ping, user, weather, etc.)
+  - `services/` - External service integrations (OpenWeatherMap API)
+  - `testutils/` - Test utilities, mocks, and fixtures
 - **Event-driven**: Uses Discord gateway events (ready, interactionCreate)
 - **Dependencies**: Uses `github.com/bwmarrin/discordgo v0.29.0` for Discord API interaction
 - **Intents**: Requires `GuildMessages` and `GuildEmojis` intents for message handling and emoji reactions
-- **Test coverage**: Comprehensive test suite with unit tests and benchmarks (36.3% coverage)
+- **Test coverage**: Comprehensive test suite with unit tests and benchmarks (33.1% coverage)
 
 ## Environment Setup
 

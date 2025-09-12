@@ -4,11 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a simple Discord bot written in Go using the discordgo library. The bot is a single-file application (`main.go`) that implements slash command functionality with interactive features.
+This is a simple Discord bot written in Go using the discordgo library. The bot has been refactored from a single-file application into a modular structure with organized packages for better maintainability and testing.
 
 ## Architecture
 
-- **Single-file structure**: The entire bot logic is contained in `main.go`
+- **Modular structure**: Organized into packages for better maintainability:
+  - `bot/` - Core bot initialization, Discord session management, and command routing
+  - `commands/` - Individual command handlers (ping, user, weather, peepee, 8ball, etc.)
+  - `services/` - External service integrations (OpenWeatherMap API)
+  - `testutils/` - Test utilities, mocks, and fixtures for comprehensive testing
+  - `utils/` - Shared utility functions (avatar handling, random selections)
 - **Event-driven**: Uses Discord gateway events (ready, interactionCreate)
 - **Dependencies**: Uses `github.com/bwmarrin/discordgo v0.29.0` for Discord API interaction
 - **Intents**: Requires `GuildMessages` and `GuildEmojis` intents for message handling and emoji reactions
@@ -105,30 +110,37 @@ The bot automatically loads environment variables from a `.env` file if present.
 
 ## Code Structure
 
-### Core Functions
-- **`getCommands()`**: Returns list of application commands for registration
-- **`registerCommands()`**: Handles command registration with Discord API (only runs when --register-commands flag is used)
-- **`getRandomPhrase(username)`**: Returns formatted phrase with username and random definition
-- **`getUserAvatarURL()`**: Gets user avatar with fallback to default
-- **`createPeepeeEmbed()`**: Creates embed response for peepee command
-- **`getRandomEmoji()`**: Selects random emoji from server's emoji list with fallback
+### Package Organization
 
-### Command Handlers
-- **`handlePingCommand()`**: Handles `/ping` command (testable with interface)
-- **`handlePeepeeCommand()`**: Handles `/peepee` command embed creation (testable)
-- **`handlePeepeeCommandWithReaction()`**: Full `/peepee` command with emoji reactions
-- **`handle8BallCommand()`**: Handles `/8ball` command with random responses
-- **`handleCoinFlipCommand()`**: Handles `/coinflip` command
-- **`handleServerCommand()`**: Handles `/server` command for guild information
-- **`handleUserCommand()`**: Handles `/user` command for user profiles
-- **`handleWeatherCommand()`**: Handles `/weather` command with OpenWeatherMap API
-- **`getWeatherData()`**: Fetches real weather data from OpenWeatherMap
-- **`getWeatherIcon()`**: Maps weather conditions to appropriate emojis
-- **`interactionCreate()`**: Main Discord event handler routing commands
+#### `bot/` Package
+- **`bot.go`**: Core bot structure, Discord session management, and initialization
+- **`commands.go`**: Command definitions and registration logic
+- **`handlers.go`**: Main interaction routing and command dispatch
 
-### Testing
-- **`main_test.go`**: Comprehensive test suite with unit tests and benchmarks
-- **`SessionInterface`**: Interface for mocking Discord session in tests
-- **`MockSession`**: Test mock implementing SessionInterface
-- Tests cover: command registration, username phrase formatting, embed creation, avatar handling, and command handlers
-- **`peepeeDefinitions`**: 20 trendy size definitions for variety and humor
+#### `commands/` Package  
+- **`ping.go`**: Simple ping/pong response handler
+- **`peepee.go`**: Interactive inspection command with random phrases and emoji reactions
+- **`eightball.go`**: Magic 8-ball with predefined responses
+- **`coinflip.go`**: Coin flip randomization
+- **`user.go`**: User profile display with avatar and account information
+- **`server.go`**: Server/guild information display
+- **`weather.go`**: Weather command integrating with OpenWeatherMap API
+- **`interfaces.go`**: SessionInterface definition for testability
+
+#### `services/` Package
+- **`weather.go`**: OpenWeatherMap API integration and data structures
+
+#### `utils/` Package
+- **`avatar.go`**: User avatar URL generation with fallbacks
+- **`random.go`**: Random phrase generation and emoji selection utilities
+
+#### `testutils/` Package
+- **`mocks.go`**: MockSession implementing SessionInterface for testing
+- **`fixtures.go`**: Test data factories (users, guilds, interactions, emojis)
+
+### Testing Structure
+- **Package-specific tests**: Each package has comprehensive test coverage
+- **Mock interfaces**: SessionInterface allows for isolated unit testing
+- **Test utilities**: Centralized mock creation and fixture generation
+- **Coverage**: 33.1% overall coverage with room for improvement in complex Discord interactions
+- **Test organization**: Clear separation between unit tests, integration tests, and benchmarks
