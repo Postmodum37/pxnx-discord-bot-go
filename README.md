@@ -1,0 +1,101 @@
+# PXNX Discord Bot
+
+A simple Discord bot written in Go using the discordgo library. This bot provides various slash commands with interactive features and real-time data integration.
+
+## Features
+
+- **`/ping`** - Simple ping-pong response
+- **`/peepee`** - Interactive inspection command with random funny definitions and emoji reactions
+- **`/8ball`** - Magic 8-ball with 20 classic responses
+- **`/coinflip`** - Random heads/tails coin flip
+- **`/server`** - Display server information (member count, creation date, etc.)
+- **`/user`** - Show user profile information with optional target parameter
+- **`/weather`** - Real weather data powered by OpenWeatherMap API
+- Graceful shutdown on CTRL+C
+- Manual command registration with `--register-commands` flag (includes cleanup of old commands)
+- Fast startup without automatic command registration
+
+## Quick Setup
+
+1. **Clone and install dependencies**:
+   ```bash
+   git clone <repository-url>
+   cd pxnx-discord-bot-go
+   go mod tidy
+   ```
+
+2. **Set up environment variables**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your actual tokens
+   ```
+
+3. **Required environment variables**:
+   - `DISCORD_BOT_TOKEN`: Your Discord bot token
+   - `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key ([get one free](https://openweathermap.org/api))
+
+4. **Register slash commands** (only needed once):
+   ```bash
+   go run main.go --register-commands
+   ```
+
+5. **Run the bot**:
+   ```bash
+   go run main.go
+   ```
+
+## Usage
+
+### Command Registration
+The bot doesn't register slash commands automatically for faster startup times. You need to register them once:
+
+```bash
+# Register slash commands with Discord (only needed once or when commands change)
+go run main.go --register-commands
+
+# Normal bot startup (fast, no command registration)
+go run main.go
+```
+
+### Command Line Options
+```bash
+go run main.go --register-commands    # Register bot commands with Discord (cleans up existing commands first)
+go run main.go --help               # Show all available command line options
+```
+
+### Building
+```bash
+go build            # Build executable
+./pxnx-discord-bot   # Run the built executable
+```
+
+## Development
+
+### Testing
+```bash
+go test             # Run all tests
+go test -v          # Run tests with verbose output
+go test -bench=.    # Run tests with benchmarks
+go test -cover      # Run tests with coverage report
+```
+
+### Architecture
+- **Single-file structure**: The entire bot logic is contained in `main.go`
+- **Event-driven**: Uses Discord gateway events (ready, interactionCreate)
+- **Dependencies**: Uses `github.com/bwmarrin/discordgo v0.29.0` for Discord API interaction
+- **Intents**: Requires `GuildMessages` and `GuildEmojis` intents for message handling and emoji reactions
+- **Test coverage**: Comprehensive test suite with unit tests and benchmarks (36.3% coverage)
+
+## Environment Setup
+
+The bot automatically loads environment variables from a `.env` file if present. Alternatively, you can set environment variables manually:
+
+```bash
+export DISCORD_BOT_TOKEN=your_bot_token_here
+export OPENWEATHER_API_KEY=your_openweathermap_api_key_here
+go run main.go
+```
+
+## License
+
+This project is open source. Feel free to contribute or modify as needed.

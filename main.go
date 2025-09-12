@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -28,7 +29,17 @@ const (
 // Initialize random seed once
 var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
+// Global flag for command registration
+var shouldRegisterCommands bool
+
 func main() {
+	// Parse command line flags
+	registerCommands := flag.Bool("register-commands", false, "Register bot commands with Discord (cleans up existing commands first)")
+	flag.Parse()
+	
+	// Set global flag
+	shouldRegisterCommands = *registerCommands
+
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using system environment variables")
@@ -127,38 +138,81 @@ func getCommands() []*discordgo.ApplicationCommand {
 	}
 }
 
-// registerCommands registers all bot commands with Discord
+// registerCommands registers all bot commands with Discord (includes cleanup of existing commands)
 func registerCommands(s *discordgo.Session) error {
-	// First, clear all existing global commands to ensure cleanup of old/deleted commands
+	fmt.Println("Starting command registration process...")
+	
+	// Always clean up existing commands first to ensure clean state
+	fmt.Println("Cleaning up existing commands...")
+	
+	// Clear all existing global commands
+	fmt.Println("Retrieving existing global commands...")
 	existingCommands, err := s.ApplicationCommands(s.State.User.ID, "")
 	if err != nil {
 		return fmt.Errorf("cannot retrieve existing commands: %w", err)
 	}
 	
 	// Delete all existing global commands
-	for _, cmd := range existingCommands {
-		err := s.ApplicationCommandDelete(s.State.User.ID, "", cmd.ID)
+	if len(existingCommands) > 0 {
+		fmt.Printf("Deleting %d existing global commands...\n", len(existingCommands))
+		for _, cmd := range existingCommands {
+			fmt.Printf("Deleting global command: %s\n", cmd.Name)
+			err := s.ApplicationCommandDelete(s.State.User.ID, "", cmd.ID)
+			if err != nil {
+				return fmt.Errorf("cannot delete existing command '%v': %w", cmd.Name, err)
+			}
+		}
+	} else {
+		fmt.Println("No existing global commands found.")
+	}
+	
+	// Also clear guild-specific commands for all guilds the bot is in
+	fmt.Println("Clearing guild-specific commands...")
+	for _, guild := range s.State.Guilds {
+		guildCommands, err := s.ApplicationCommands(s.State.User.ID, guild.ID)
 		if err != nil {
-			return fmt.Errorf("cannot delete existing command '%v': %w", cmd.Name, err)
+			fmt.Printf("Warning: Could not retrieve commands for guild %s: %v\n", guild.ID, err)
+			continue
+		}
+		
+		if len(guildCommands) > 0 {
+			fmt.Printf("Deleting %d commands from guild %s...\n", len(guildCommands), guild.ID)
+			for _, cmd := range guildCommands {
+				fmt.Printf("Deleting guild command: %s from guild %s\n", cmd.Name, guild.ID)
+				err := s.ApplicationCommandDelete(s.State.User.ID, guild.ID, cmd.ID)
+				if err != nil {
+					fmt.Printf("Warning: Could not delete command '%s' from guild %s: %v\n", cmd.Name, guild.ID, err)
+				}
+			}
 		}
 	}
 	
-	// Now register the current commands
+	// Register the current commands as global commands
+	fmt.Println("Registering new global commands...")
 	commands := getCommands()
 	for _, cmd := range commands {
+		fmt.Printf("Creating global command: %s\n", cmd.Name)
 		_, err := s.ApplicationCommandCreate(s.State.User.ID, "", cmd)
 		if err != nil {
 			return fmt.Errorf("cannot create '%v' command: %w", cmd.Name, err)
 		}
 	}
+	
+	fmt.Printf("Successfully registered %d commands!\n", len(commands))
 	return nil
 }
 
 func ready(s *discordgo.Session, event *discordgo.Ready) {
 	fmt.Printf("Logged in as: %v#%v\n", s.State.User.Username, s.State.User.Discriminator)
 
-	if err := registerCommands(s); err != nil {
-		log.Printf("Error registering commands: %v", err)
+	if shouldRegisterCommands {
+		if err := registerCommands(s); err != nil {
+			log.Printf("Error registering commands: %v", err)
+			return
+		}
+		fmt.Println("Command registration complete. Bot is ready!")
+	} else {
+		fmt.Println("Bot is ready! (Use --register-commands flag to register slash commands)")
 	}
 }
 

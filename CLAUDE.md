@@ -36,6 +36,22 @@ export OPENWEATHER_API_KEY=your_openweathermap_api_key_here
 go run main.go
 ```
 
+#### Command Registration
+The bot doesn't register slash commands automatically. You need to register them once:
+```bash
+# Register slash commands with Discord (only needed once or when commands change)
+go run main.go --register-commands
+
+# Normal bot startup (fast, no command registration)
+go run main.go
+```
+
+#### Command line options
+```bash
+go run main.go --register-commands    # Register bot commands with Discord (cleans up existing commands first)
+go run main.go --help               # Show all available command line options
+```
+
 ### Building
 ```bash
 go build            # Build executable
@@ -68,13 +84,14 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **`/user` command**: Show user profile information with optional target parameter
 - **`/weather` command**: Real weather data powered by OpenWeatherMap API
 - Graceful shutdown on CTRL+C
-- Automatic command registration on bot startup with global command reset (clears old/deleted commands)
+- Manual command registration with `--register-commands` flag (includes cleanup of old commands)
+- Fast startup without automatic command registration
 
 ## Code Structure
 
 ### Core Functions
 - **`getCommands()`**: Returns list of application commands for registration
-- **`registerCommands()`**: Handles command registration with Discord API, includes global command reset functionality
+- **`registerCommands()`**: Handles command registration with Discord API (only runs when --register-commands flag is used)
 - **`getRandomPhrase(username)`**: Returns formatted phrase with username and random definition
 - **`getUserAvatarURL()`**: Gets user avatar with fallback to default
 - **`createPeepeeEmbed()`**: Creates embed response for peepee command
