@@ -66,6 +66,22 @@ go test -bench=.    # Run tests with benchmarks
 go test -cover      # Run tests with coverage report
 ```
 
+### Code Quality (Linting & Formatting)
+The project uses industry-standard Go tools for code quality:
+
+```bash
+# Using Make commands (recommended)
+make help           # Show all available commands
+make format         # Format code with goimports
+make lint           # Run golangci-lint
+make check          # Format + lint
+make dev-check      # Format + lint + test (use before committing)
+
+# Direct tool usage
+goimports -w *.go                    # Format code and organize imports
+golangci-lint run --timeout=2m      # Run comprehensive linter
+```
+
 ## Environment Configuration
 
 The bot requires the following environment variables:

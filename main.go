@@ -15,6 +15,8 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Embed color constants
@@ -36,7 +38,7 @@ func main() {
 	// Parse command line flags
 	registerCommands := flag.Bool("register-commands", false, "Register bot commands with Discord (cleans up existing commands first)")
 	flag.Parse()
-	
+
 	// Set global flag
 	shouldRegisterCommands = *registerCommands
 
@@ -64,7 +66,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Error opening connection:", err)
 	}
-	defer dg.Close()
+	defer func() {
+		if err := dg.Close(); err != nil {
+			log.Printf("Error closing Discord session: %v", err)
+		}
+	}()
 
 	fmt.Println("Bot is running. Press CTRL+C to exit.")
 
@@ -141,17 +147,17 @@ func getCommands() []*discordgo.ApplicationCommand {
 // registerCommands registers all bot commands with Discord (includes cleanup of existing commands)
 func registerCommands(s *discordgo.Session) error {
 	fmt.Println("Starting command registration process...")
-	
+
 	// Always clean up existing commands first to ensure clean state
 	fmt.Println("Cleaning up existing commands...")
-	
+
 	// Clear all existing global commands
 	fmt.Println("Retrieving existing global commands...")
 	existingCommands, err := s.ApplicationCommands(s.State.User.ID, "")
 	if err != nil {
 		return fmt.Errorf("cannot retrieve existing commands: %w", err)
 	}
-	
+
 	// Delete all existing global commands
 	if len(existingCommands) > 0 {
 		fmt.Printf("Deleting %d existing global commands...\n", len(existingCommands))
@@ -165,7 +171,7 @@ func registerCommands(s *discordgo.Session) error {
 	} else {
 		fmt.Println("No existing global commands found.")
 	}
-	
+
 	// Also clear guild-specific commands for all guilds the bot is in
 	fmt.Println("Clearing guild-specific commands...")
 	for _, guild := range s.State.Guilds {
@@ -174,7 +180,7 @@ func registerCommands(s *discordgo.Session) error {
 			fmt.Printf("Warning: Could not retrieve commands for guild %s: %v\n", guild.ID, err)
 			continue
 		}
-		
+
 		if len(guildCommands) > 0 {
 			fmt.Printf("Deleting %d commands from guild %s...\n", len(guildCommands), guild.ID)
 			for _, cmd := range guildCommands {
@@ -186,7 +192,7 @@ func registerCommands(s *discordgo.Session) error {
 			}
 		}
 	}
-	
+
 	// Register the current commands as global commands
 	fmt.Println("Registering new global commands...")
 	commands := getCommands()
@@ -197,7 +203,7 @@ func registerCommands(s *discordgo.Session) error {
 			return fmt.Errorf("cannot create '%v' command: %w", cmd.Name, err)
 		}
 	}
-	
+
 	fmt.Printf("Successfully registered %d commands!\n", len(commands))
 	return nil
 }
@@ -242,9 +248,9 @@ var eightBallResponses = []string{
 // WeatherData represents the response from OpenWeatherMap API
 type WeatherData struct {
 	Main struct {
-		Temp     float64 `json:"temp"`
+		Temp      float64 `json:"temp"`
 		FeelsLike float64 `json:"feels_like"`
-		Humidity int     `json:"humidity"`
+		Humidity  int     `json:"humidity"`
 	} `json:"main"`
 	Weather []struct {
 		Main        string `json:"main"`
@@ -318,7 +324,7 @@ func createErrorEmbed(title, description, errorMsg string) *discordgo.MessageEmb
 func createPeepeeEmbed(user *discordgo.User) *discordgo.MessageEmbed {
 	randomPhrase := getRandomPhrase(user.Username)
 	avatarURL := getUserAvatarURL(user)
-	
+
 	return &discordgo.MessageEmbed{
 		Title:       "PeePee Inspection Time",
 		Description: randomPhrase,
@@ -333,7 +339,7 @@ func getRandomEmoji(s *discordgo.Session, guildID string) string {
 	if s == nil || guildID == "" {
 		return "🔍" // fallback emoji
 	}
-	
+
 	emojis, err := s.GuildEmojis(guildID)
 	if err != nil || len(emojis) == 0 {
 		return "🔍" // fallback emoji
@@ -360,7 +366,7 @@ func handlePingCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 // handlePeepeeCommand handles the peepee slash command (without emoji reaction)
 func handlePeepeeCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
 	embed := createPeepeeEmbed(i.Member.User)
-	
+
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -375,7 +381,7 @@ func handlePeepeeCommandWithReaction(s *discordgo.Session, i *discordgo.Interact
 	if err != nil {
 		return err
 	}
-	
+
 	// Add random emoji reaction
 	if i.GuildID != "" {
 		emoji := getRandomEmoji(s, i.GuildID)
@@ -385,11 +391,13 @@ func handlePeepeeCommandWithReaction(s *discordgo.Session, i *discordgo.Interact
 			// Get the interaction response message
 			msg, err := s.InteractionResponse(i.Interaction)
 			if err == nil {
-				s.MessageReactionAdd(i.ChannelID, msg.ID, emoji)
+				if err := s.MessageReactionAdd(i.ChannelID, msg.ID, emoji); err != nil {
+					log.Printf("Error adding reaction: %v", err)
+				}
 			}
 		}()
 	}
-	
+
 	return nil
 }
 
@@ -403,7 +411,7 @@ func handle8BallCommand(s SessionInterface, i *discordgo.InteractionCreate) erro
 	options := i.ApplicationCommandData().Options
 	question := options[0].StringValue()
 	response := get8BallResponse()
-	
+
 	embed := &discordgo.MessageEmbed{
 		Title: "🎱 Magic 8-Ball",
 		Color: ColorPurple,
@@ -418,7 +426,7 @@ func handle8BallCommand(s SessionInterface, i *discordgo.InteractionCreate) erro
 			},
 		},
 	}
-	
+
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -433,13 +441,13 @@ func handleCoinFlipCommand(s SessionInterface, i *discordgo.InteractionCreate) e
 	if rng.Intn(2) == 1 {
 		result = "Tails"
 	}
-	
+
 	embed := &discordgo.MessageEmbed{
 		Title:       "🪙 Coin Flip",
 		Description: fmt.Sprintf("The coin landed on **%s**!", result),
 		Color:       ColorOrange,
 	}
-	
+
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -454,10 +462,10 @@ func handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) e
 	if err != nil {
 		return err
 	}
-	
+
 	memberCount := guild.MemberCount
 	createdAt, _ := discordgo.SnowflakeTimestamp(guild.ID)
-	
+
 	embed := &discordgo.MessageEmbed{
 		Title:       fmt.Sprintf("📊 %s Server Info", guild.Name),
 		Description: fmt.Sprintf("Here's some information about **%s**", guild.Name),
@@ -488,7 +496,7 @@ func handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) e
 			},
 		},
 	}
-	
+
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -500,7 +508,7 @@ func handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) e
 // handleUserCommand handles the user slash command
 func handleUserCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
 	var targetUser *discordgo.User
-	
+
 	// Check if a user was mentioned in options
 	if len(i.ApplicationCommandData().Options) > 0 {
 		targetUser = i.ApplicationCommandData().Options[0].UserValue(nil)
@@ -508,10 +516,10 @@ func handleUserCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 		// Use the command invoker
 		targetUser = i.Member.User
 	}
-	
+
 	avatarURL := getUserAvatarURL(targetUser)
 	userCreated, _ := discordgo.SnowflakeTimestamp(targetUser.ID)
-	
+
 	embed := &discordgo.MessageEmbed{
 		Title:       fmt.Sprintf("👤 %s's Profile", targetUser.Username),
 		Description: fmt.Sprintf("Here's some information about **%s**", targetUser.Mention()),
@@ -537,7 +545,7 @@ func handleUserCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 			},
 		},
 	}
-	
+
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -552,26 +560,30 @@ func getWeatherData(city string) (*WeatherData, error) {
 	if apiKey == "" {
 		return nil, fmt.Errorf("OPENWEATHER_API_KEY environment variable is required")
 	}
-	
+
 	// URL encode the city name to handle spaces and special characters
 	encodedCity := url.QueryEscape(city)
 	apiURL := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s&units=metric", encodedCity, apiKey)
-	
+
 	resp, err := http.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch weather data: %w", err)
 	}
-	defer resp.Body.Close()
-	
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}()
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("weather API returned status %d", resp.StatusCode)
 	}
-	
+
 	var weatherData WeatherData
 	if err := json.NewDecoder(resp.Body).Decode(&weatherData); err != nil {
 		return nil, fmt.Errorf("failed to decode weather data: %w", err)
 	}
-	
+
 	return &weatherData, nil
 }
 
@@ -600,7 +612,7 @@ func getWeatherIcon(condition string) string {
 func handleWeatherCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
 	options := i.ApplicationCommandData().Options
 	city := options[0].StringValue()
-	
+
 	weatherData, err := getWeatherData(city)
 	if err != nil {
 		// Return error embed if API call fails
@@ -612,7 +624,7 @@ func handleWeatherCommand(s SessionInterface, i *discordgo.InteractionCreate) er
 		errorEmbed.Footer = &discordgo.MessageEmbedFooter{
 			Text: "Powered by OpenWeatherMap",
 		}
-		
+
 		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -620,25 +632,26 @@ func handleWeatherCommand(s SessionInterface, i *discordgo.InteractionCreate) er
 			},
 		})
 	}
-	
+
 	// Format temperature
 	temp := fmt.Sprintf("%.1f°C", weatherData.Main.Temp)
 	feelsLike := fmt.Sprintf("%.1f°C", weatherData.Main.FeelsLike)
-	
+
 	// Get weather condition and icon
 	condition := "Unknown"
 	description := "No description available"
 	if len(weatherData.Weather) > 0 {
 		condition = weatherData.Weather[0].Main
-		description = strings.Title(weatherData.Weather[0].Description)
+		titleCaser := cases.Title(language.English)
+		description = titleCaser.String(weatherData.Weather[0].Description)
 	}
-	
+
 	weatherIcon := getWeatherIcon(condition)
 	location := weatherData.Name
 	if weatherData.Sys.Country != "" {
 		location = fmt.Sprintf("%s, %s", weatherData.Name, weatherData.Sys.Country)
 	}
-	
+
 	embed := &discordgo.MessageEmbed{
 		Title:       fmt.Sprintf("%s Weather in %s", weatherIcon, location),
 		Description: description,
@@ -665,7 +678,7 @@ func handleWeatherCommand(s SessionInterface, i *discordgo.InteractionCreate) er
 		},
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
-	
+
 	// Add wind information if available
 	if weatherData.Wind.Speed > 0 {
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
@@ -674,7 +687,7 @@ func handleWeatherCommand(s SessionInterface, i *discordgo.InteractionCreate) er
 			Inline: true,
 		})
 	}
-	
+
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -701,7 +714,7 @@ func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	case "weather":
 		err = handleWeatherCommand(s, i)
 	}
-	
+
 	if err != nil {
 		log.Printf("Error handling command '%s': %v", i.ApplicationCommandData().Name, err)
 	}

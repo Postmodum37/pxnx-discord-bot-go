@@ -71,6 +71,26 @@ go build            # Build executable
 
 ## Development
 
+### Code Quality Tools
+This project uses industry-standard Go linting and formatting tools:
+
+```bash
+# Using Make commands (recommended)
+make help           # Show all available commands
+make format         # Format code with goimports
+make lint           # Run golangci-lint
+make check          # Format + lint
+make dev-check      # Format + lint + test (use before committing)
+
+# Direct tool usage
+goimports -w *.go                    # Format code and organize imports
+golangci-lint run --timeout=2m      # Run comprehensive linter
+```
+
+**Required tools** (installed automatically via go install):
+- `goimports` - Code formatting and import organization
+- `golangci-lint` - Comprehensive Go linter with multiple checks
+
 ### Testing
 ```bash
 go test             # Run all tests
