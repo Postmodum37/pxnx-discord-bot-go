@@ -68,13 +68,13 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **`/user` command**: Show user profile information with optional target parameter
 - **`/weather` command**: Real weather data powered by OpenWeatherMap API
 - Graceful shutdown on CTRL+C
-- Automatic command registration on bot startup
+- Automatic command registration on bot startup with global command reset (clears old/deleted commands)
 
 ## Code Structure
 
 ### Core Functions
 - **`getCommands()`**: Returns list of application commands for registration
-- **`registerCommands()`**: Handles command registration with Discord API
+- **`registerCommands()`**: Handles command registration with Discord API, includes global command reset functionality
 - **`getRandomPhrase(username)`**: Returns formatted phrase with username and random definition
 - **`getUserAvatarURL()`**: Gets user avatar with fallback to default
 - **`createPeepeeEmbed()`**: Creates embed response for peepee command

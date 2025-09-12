@@ -129,6 +129,21 @@ func getCommands() []*discordgo.ApplicationCommand {
 
 // registerCommands registers all bot commands with Discord
 func registerCommands(s *discordgo.Session) error {
+	// First, clear all existing global commands to ensure cleanup of old/deleted commands
+	existingCommands, err := s.ApplicationCommands(s.State.User.ID, "")
+	if err != nil {
+		return fmt.Errorf("cannot retrieve existing commands: %w", err)
+	}
+	
+	// Delete all existing global commands
+	for _, cmd := range existingCommands {
+		err := s.ApplicationCommandDelete(s.State.User.ID, "", cmd.ID)
+		if err != nil {
+			return fmt.Errorf("cannot delete existing command '%v': %w", cmd.Name, err)
+		}
+	}
+	
+	// Now register the current commands
 	commands := getCommands()
 	for _, cmd := range commands {
 		_, err := s.ApplicationCommandCreate(s.State.User.ID, "", cmd)
