@@ -17,6 +17,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      security-events: write  # Required for uploading SARIF results
+      actions: read           # Required for private repos (good practice)
 
     steps:
     - name: Checkout repository
@@ -73,8 +75,9 @@ jobs:
         severity: 'CRITICAL,HIGH'
 
     - name: Upload Trivy scan results to GitHub Security tab
-      if: github.event_name != 'pull_request' && always()
+      if: github.event_name != 'pull_request'
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
+        category: 'trivy-container-scan'
       continue-on-error: true
