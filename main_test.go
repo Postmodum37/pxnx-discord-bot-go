@@ -8,7 +8,7 @@ import (
 
 func TestMainPackageIntegration(t *testing.T) {
 	// Test that main package can access bot functionality
-	
+
 	t.Run("can access bot commands", func(t *testing.T) {
 		commands := bot.GetCommands()
 		if len(commands) == 0 {
