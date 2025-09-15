@@ -60,8 +60,11 @@ jobs:
     - name: Run Trivy vulnerability scanner
       if: github.event_name != 'pull_request'
       uses: aquasecurity/trivy-action@0.28.0
+      env:
+        # Convert repository name to lowercase for container registry compatibility
+        REPO_LOWER: ${{ github.repository }}
       with:
-        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        image-ref: 'ghcr.io/postmodum37/pxnx-discord-bot-go:latest'
         format: 'sarif'
         output: 'trivy-results.sarif'
         exit-code: '0'  # Don't fail build on vulnerabilities
