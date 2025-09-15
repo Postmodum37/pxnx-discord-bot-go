@@ -7,6 +7,7 @@ import (
 // SessionInterface defines the methods we need from a Discord session for testing
 type SessionInterface interface {
 	InteractionRespond(interaction *discordgo.Interaction, resp *discordgo.InteractionResponse, options ...discordgo.RequestOption) error
+	Guild(guildID string, options ...discordgo.RequestOption) (*discordgo.Guild, error)
 }
 
 // HandlePingCommand handles the ping slash command

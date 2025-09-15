@@ -32,7 +32,7 @@ func (m *MockSession) InteractionRespond(interaction *discordgo.Interaction, res
 }
 
 // Guild mocks the Discord session Guild method
-func (m *MockSession) Guild(guildID string) (*discordgo.Guild, error) {
+func (m *MockSession) Guild(guildID string, options ...discordgo.RequestOption) (*discordgo.Guild, error) {
 	m.GuildCalled = true
 	if m.GuildError != nil {
 		return nil, m.GuildError

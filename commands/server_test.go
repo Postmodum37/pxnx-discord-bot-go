@@ -3,43 +3,71 @@ package commands
 import (
 	"testing"
 
-	"github.com/bwmarrin/discordgo"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"pxnx-discord-bot/testutils"
 )
 
-// MockDiscordSession implements the specific methods needed for server command
-type MockDiscordSession struct {
-	*testutils.MockSession
-	guildReturn *discordgo.Guild
-	guildError  error
-}
-
-// Guild implements the Guild method for server command testing
-func (m *MockDiscordSession) Guild(guildID string) (*discordgo.Guild, error) {
-	if m.guildError != nil {
-		return nil, m.guildError
-	}
-	if m.guildReturn != nil {
-		return m.guildReturn, nil
-	}
-	// Default test guild
-	return testutils.CreateTestGuild("guild123", "Test Guild", 100), nil
-}
-
-// InteractionRespond delegates to the embedded MockSession
-func (m *MockDiscordSession) InteractionRespond(interaction *discordgo.Interaction, resp *discordgo.InteractionResponse, options ...discordgo.RequestOption) error {
-	return m.MockSession.InteractionRespond(interaction, resp, options...)
-}
-
 func TestHandleServerCommand(t *testing.T) {
-	// Note: Since HandleServerCommand requires *discordgo.Session specifically,
-	// we can't easily test it with our mock. In a real implementation, we would
-	// need to refactor it to accept an interface or create a more sophisticated mock.
-	
-	t.Skip("HandleServerCommand requires *discordgo.Session - would need interface refactoring for proper testing")
-}
+	tests := []struct {
+		name           string
+		setupMock      func(*testutils.MockSession)
+		expectedError  bool
+		expectedCalled bool
+	}{
+		{
+			name: "successful server info response",
+			setupMock: func(mock *testutils.MockSession) {
+				mock.GuildReturn = testutils.CreateTestGuild("guild123", "Test Server", 250)
+			},
+			expectedError:  false,
+			expectedCalled: true,
+		},
+		{
+			name: "guild fetch error",
+			setupMock: func(mock *testutils.MockSession) {
+				mock.GuildError = assert.AnError
+			},
+			expectedError:  true,
+			expectedCalled: false,
+		},
+		{
+			name: "session respond error",
+			setupMock: func(mock *testutils.MockSession) {
+				mock.GuildReturn = testutils.CreateTestGuild("guild456", "Another Server", 500)
+				mock.RespondError = assert.AnError
+			},
+			expectedError:  true,
+			expectedCalled: true,
+		},
+	}
 
-func TestHandleServerCommandEdgeCases(t *testing.T) {
-	t.Skip("HandleServerCommand requires *discordgo.Session - would need interface refactoring for proper testing")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSession := &testutils.MockSession{}
+			tt.setupMock(mockSession)
+
+			interaction := testutils.CreateTestInteraction("server", nil)
+			interaction.GuildID = "guild123"
+
+			err := HandleServerCommand(mockSession, interaction)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Equal(t, tt.expectedCalled, mockSession.RespondCalled)
+
+			if mockSession.RespondCalled && !tt.expectedError {
+				require.NotNil(t, mockSession.RespondData)
+				assert.NotEmpty(t, mockSession.RespondData.Embeds)
+				embed := mockSession.RespondData.Embeds[0]
+				assert.Contains(t, embed.Title, "Server Info")
+				assert.NotEmpty(t, embed.Fields)
+			}
+		})
+	}
 }

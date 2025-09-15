@@ -7,7 +7,7 @@ import (
 )
 
 // HandleServerCommand handles the server slash command
-func HandleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+func HandleServerCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
 	guild, err := s.Guild(i.GuildID)
 	if err != nil {
 		return err
