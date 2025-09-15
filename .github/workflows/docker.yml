@@ -57,22 +57,17 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Scan with Trivy
+    - name: Run Trivy vulnerability scanner
       if: github.event_name != 'pull_request'
-      run: |
-        # Convert repository name to lowercase for container registry
-        REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-        IMAGE_REF="ghcr.io/${REPO_LOWER}:latest"
-        echo "Scanning image: ${IMAGE_REF}"
-
-        # Run Trivy scan
-        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-          -v ${{ github.workspace }}:/workspace \
-          aquasec/trivy:latest image \
-          --format sarif \
-          --output /workspace/trivy-results.sarif \
-          --exit-code 0 \
-          "${IMAGE_REF}"
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        exit-code: '0'  # Don't fail build on vulnerabilities
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        severity: 'CRITICAL,HIGH'
 
     - name: Upload Trivy scan results to GitHub Security tab
       if: github.event_name != 'pull_request' && always()
