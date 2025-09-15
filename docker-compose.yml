@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  pxnx-discord-bot:
+    # Use pre-built image from GitHub Container Registry
+    image: ghcr.io/postmodum37/pxnx-discord-bot-go:latest
+
+    # Alternatively, build from local Dockerfile
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+
+    container_name: pxnx-discord-bot
+
+    # Environment variables
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+
+    # Alternative: use env_file
+    # env_file:
+    #   - .env
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.25'
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "pgrep", "pxnx-discord-bot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Read-only root filesystem (optional, if bot doesn't write files)
+    # read_only: true
+
+    # Networks (optional, for custom networking)
+    # networks:
+    #   - bot-network
+
+# Optional: Custom network
+# networks:
+#   bot-network:
+#     driver: bridge

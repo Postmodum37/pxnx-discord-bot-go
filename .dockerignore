@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test files
+*_test.go
+testutils/
+coverage.out
+*.test
+
+# Dependencies (will be downloaded in container)
+vendor/
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+pxnx-discord-bot
+pxnx-discord-bot.exe
+
+# Environment files (security)
+.env
+.env.local
+.env.*.local
+
+# Docker files (not needed in container)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Claude Code
+.claude/

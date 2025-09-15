@@ -26,6 +26,8 @@ go mod tidy          # Download and organize dependencies
 ```
 
 ### Running the bot
+
+#### Local Development
 ```bash
 # Copy .env.example to .env and add your tokens
 cp .env.example .env
@@ -40,6 +42,31 @@ export DISCORD_BOT_TOKEN=your_bot_token_here
 export OPENWEATHER_API_KEY=your_openweathermap_api_key_here
 go run main.go
 ```
+
+#### Docker Deployment (Production)
+The application is containerized and available via GitHub Container Registry:
+
+```bash
+# 1. Create environment file
+cp .env.example .env
+# Edit .env with your actual tokens
+
+# 2. Pull and run with Docker Compose
+docker-compose pull
+docker-compose up -d
+
+# 3. View logs
+docker-compose logs -f
+
+# 4. Stop the bot
+docker-compose down
+```
+
+**Docker Image**: `ghcr.io/postmodum37/pxnx-discord-bot-go:latest`
+- Multi-architecture support (amd64/arm64)
+- Automatic builds on every commit
+- Security scanned with Trivy
+- Minimal Alpine-based runtime (~15MB)
 
 #### Command Registration
 The bot doesn't register slash commands automatically. You need to register them once:
