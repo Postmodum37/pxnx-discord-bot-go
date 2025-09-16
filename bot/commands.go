@@ -26,6 +26,25 @@ func createUserOption(name, description string, required bool) *discordgo.Applic
 	}
 }
 
+// createIntegerOption creates an integer application command option
+func createIntegerOption(name, description string, required bool, minValue, maxValue *float64) *discordgo.ApplicationCommandOption {
+	option := &discordgo.ApplicationCommandOption{
+		Type:        discordgo.ApplicationCommandOptionInteger,
+		Name:        name,
+		Description: description,
+		Required:    required,
+	}
+
+	if minValue != nil {
+		option.MinValue = minValue
+	}
+	if maxValue != nil {
+		option.MaxValue = *maxValue
+	}
+
+	return option
+}
+
 // createStringChoiceOption creates a string application command option with choices
 func createStringChoiceOption(name, description string, required bool, choices []*discordgo.ApplicationCommandOptionChoice) *discordgo.ApplicationCommandOption {
 	return &discordgo.ApplicationCommandOption{
@@ -89,6 +108,13 @@ func GetCommands() []*discordgo.ApplicationCommand {
 						Value: "5-day",
 					},
 				}),
+			},
+		},
+		{
+			Name:        "roll",
+			Description: "Roll a dice with specified maximum value (default: 100)",
+			Options: []*discordgo.ApplicationCommandOption{
+				createIntegerOption("max", "Maximum value for the dice roll (1-1000000)", false, func() *float64 { v := float64(1); return &v }(), func() *float64 { v := float64(1000000); return &v }()),
 			},
 		},
 	}

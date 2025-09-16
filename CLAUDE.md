@@ -36,6 +36,18 @@ cp .env.example .env
 go run main.go
 ```
 
+#### Hot Reload Development
+For development with automatic restart on file changes:
+```bash
+# Install air (one-time setup)
+go install github.com/air-verse/air@latest
+
+# Run with hot reload (automatically restarts on .go file changes)
+air
+
+# The configuration is in .air.toml and excludes test files and tmp directory
+```
+
 Alternatively, you can set environment variables manually:
 ```bash
 export DISCORD_BOT_TOKEN=your_bot_token_here
@@ -128,6 +140,7 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **`/peepee` command**: Interactive inspection command with random funny definitions and emoji reactions
 - **`/8ball` command**: Magic 8-ball with 20 classic responses
 - **`/coinflip` command**: Random heads/tails coin flip
+- **`/roll` command**: Roll a dice with customizable maximum value (default: 1-100, supports 1-1000000)
 - **`/server` command**: Display server information (member count, creation date, etc.)
 - **`/user` command**: Show user profile information with optional target parameter
 - **`/weather` command**: Real weather data powered by OpenWeatherMap API with support for current weather, 1-day, and 5-day forecasts
@@ -149,6 +162,7 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **`peepee.go`**: Interactive inspection command with random phrases and emoji reactions
 - **`eightball.go`**: Magic 8-ball with predefined responses
 - **`coinflip.go`**: Coin flip randomization
+- **`roll.go`**: Dice rolling with customizable maximum values
 - **`user.go`**: User profile display with avatar and account information
 - **`server.go`**: Server/guild information display
 - **`weather.go`**: Weather command integrating with OpenWeatherMap API
@@ -171,3 +185,35 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **Test utilities**: Centralized mock creation and fixture generation
 - **Coverage**: 33.1% overall coverage with room for improvement in complex Discord interactions
 - **Test organization**: Clear separation between unit tests, integration tests, and benchmarks
+
+## Future Feature Roadmap
+
+### 🎵 Music System
+- **Music streaming** with voice channel integration
+- **Queue management** (add, remove, skip, shuffle)
+- **Playback controls** (play, pause, stop, volume)
+
+### 🎮 RPG Game System
+- **Character creation** with classes and stats
+- **Combat system** with monsters, experience, and loot
+- **Inventory management** with gear and upgrades
+
+### 📈 Financial Data
+- **Stock market tracking** with price alerts and trends
+- **Cryptocurrency portfolio** management and price monitoring
+
+### 🎯 Gaming Integrations
+- **World of Warcraft** API for character/server data
+- **Archon.gg tier lists** for competitive game rankings
+
+### 🤖 AI Integration
+- **AI chatbot** for conversational interactions and natural language responses
+
+### 🛠️ Utility Commands
+- **Reminder system** for scheduled notifications
+- **Poll creation** with voting and results
+- **URL shortener** for Discord links
+- **Meme generator** with templates and custom text
+- **Trivia game** with categories and scoring
+
+These features represent potential expansions to the bot's functionality. The music and RPG systems would be the most complex implementations, requiring additional dependencies and persistent data storage.

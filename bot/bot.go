@@ -74,6 +74,8 @@ func (b *Bot) interactionCreate(s *discordgo.Session, i *discordgo.InteractionCr
 		err = commands.HandleUserCommand(s, i)
 	case "weather":
 		err = commands.HandleWeatherCommand(s, i)
+	case "roll":
+		err = commands.HandleRollCommand(s, i)
 	}
 
 	if err != nil {
