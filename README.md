@@ -8,6 +8,7 @@ A simple Discord bot written in Go using the discordgo library. This bot provide
 - **`/peepee`** - Interactive inspection command with random funny definitions and emoji reactions
 - **`/8ball`** - Magic 8-ball with 20 classic responses
 - **`/coinflip`** - Random heads/tails coin flip
+- **`/roll`** - Roll a dice with customizable maximum value (default: 1-100, supports 1-1000000)
 - **`/server`** - Display server information (member count, creation date, etc.)
 - **`/user`** - Show user profile information with optional target parameter
 - **`/weather`** - Real weather data powered by OpenWeatherMap API
@@ -43,6 +44,18 @@ A simple Discord bot written in Go using the discordgo library. This bot provide
    ```bash
    go run main.go
    ```
+
+### Hot Reload Development
+For development with automatic restart on file changes:
+```bash
+# Install air (one-time setup)
+go install github.com/air-verse/air@latest
+
+# Run with hot reload (automatically restarts on .go file changes)
+air
+
+# The configuration is in .air.toml and excludes test files and tmp directory
+```
 
 ## Usage
 
