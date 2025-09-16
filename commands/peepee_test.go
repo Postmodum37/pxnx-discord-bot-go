@@ -12,25 +12,25 @@ import (
 
 func TestGetRandomPhrase(t *testing.T) {
 	tests := []struct {
-		name     string
-		username string
+		name        string
+		displayName string
 	}{
-		{name: "regular username", username: "testuser"},
-		{name: "empty username", username: ""},
-		{name: "special characters", username: "user@123"},
-		{name: "long username", username: "verylongusernamethatexceedsnormallimits"},
+		{name: "regular display name", displayName: "testuser"},
+		{name: "empty display name", displayName: ""},
+		{name: "special characters", displayName: "user@123"},
+		{name: "long display name", displayName: "verylongdisplaynamethatexceedsnormallimits"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			phrase := getRandomPhrase(tt.username)
+			phrase := getRandomPhrase(tt.displayName)
 
 			if phrase == "" {
 				t.Error("Expected non-empty phrase, got empty string")
 			}
 
-			if !strings.HasPrefix(phrase, tt.username) {
-				t.Errorf("Expected phrase to start with '%s', got '%s'", tt.username, phrase)
+			if !strings.HasPrefix(phrase, tt.displayName) {
+				t.Errorf("Expected phrase to start with '%s', got '%s'", tt.displayName, phrase)
 			}
 
 			if !strings.HasSuffix(phrase, "peepee!") {
@@ -38,7 +38,7 @@ func TestGetRandomPhrase(t *testing.T) {
 			}
 
 			// Check if the middle part contains one of the definitions
-			middlePart := strings.TrimPrefix(phrase, tt.username+" ")
+			middlePart := strings.TrimPrefix(phrase, tt.displayName+" ")
 			middlePart = strings.TrimSuffix(middlePart, " peepee!")
 
 			found := false
@@ -106,40 +106,61 @@ func TestGetUserAvatarURL(t *testing.T) {
 }
 
 func TestCreatePeepeeEmbed(t *testing.T) {
-	user := testutils.CreateTestUser("123456789", "testuser", "test_avatar_hash")
+	t.Run("user with GlobalName", func(t *testing.T) {
+		user := testutils.CreateTestUser("123456789", "testuser", "test_avatar_hash")
+		user.GlobalName = "Test Display Name"
 
-	embed := createPeepeeEmbed(user)
+		embed := createPeepeeEmbed(user)
 
-	if embed.Title != "PeePee Inspection Time" {
-		t.Errorf("Expected title 'PeePee Inspection Time', got '%s'", embed.Title)
-	}
-
-	if embed.Color != 0x3498db {
-		t.Errorf("Expected color 0x3498db, got 0x%x", embed.Color)
-	}
-
-	if embed.Description == "" {
-		t.Error("Expected non-empty description")
-	}
-
-	if embed.Thumbnail == nil {
-		t.Error("Expected thumbnail to be set")
-	} else {
-		if embed.Thumbnail.URL == "" {
-			t.Error("Expected thumbnail URL to be set")
+		if embed.Title != "PeePee Inspection Time" {
+			t.Errorf("Expected title 'PeePee Inspection Time', got '%s'", embed.Title)
 		}
-	}
 
-	// Check if description follows the expected format
-	if !strings.HasPrefix(embed.Description, user.Username) {
-		t.Errorf("Expected description to start with '%s', got '%s'", 
-			user.Username, embed.Description)
-	}
+		if embed.Color != 0x3498db {
+			t.Errorf("Expected color 0x3498db, got 0x%x", embed.Color)
+		}
 
-	if !strings.HasSuffix(embed.Description, "peepee!") {
-		t.Errorf("Expected description to end with 'peepee!', got '%s'", 
-			embed.Description)
-	}
+		if embed.Description == "" {
+			t.Error("Expected non-empty description")
+		}
+
+		if embed.Thumbnail == nil {
+			t.Error("Expected thumbnail to be set")
+		} else {
+			if embed.Thumbnail.URL == "" {
+				t.Error("Expected thumbnail URL to be set")
+			}
+		}
+
+		// Check if description uses GlobalName
+		if !strings.HasPrefix(embed.Description, user.GlobalName) {
+			t.Errorf("Expected description to start with GlobalName '%s', got '%s'",
+				user.GlobalName, embed.Description)
+		}
+
+		if !strings.HasSuffix(embed.Description, "peepee!") {
+			t.Errorf("Expected description to end with 'peepee!', got '%s'",
+				embed.Description)
+		}
+	})
+
+	t.Run("user without GlobalName fallback to Username", func(t *testing.T) {
+		user := testutils.CreateTestUser("123456789", "testuser", "test_avatar_hash")
+		user.GlobalName = "" // Explicitly empty
+
+		embed := createPeepeeEmbed(user)
+
+		// Check if description falls back to Username
+		if !strings.HasPrefix(embed.Description, user.Username) {
+			t.Errorf("Expected description to start with Username '%s' when GlobalName is empty, got '%s'",
+				user.Username, embed.Description)
+		}
+
+		if !strings.HasSuffix(embed.Description, "peepee!") {
+			t.Errorf("Expected description to end with 'peepee!', got '%s'",
+				embed.Description)
+		}
+	})
 }
 
 func TestGetRandomEmoji(t *testing.T) {

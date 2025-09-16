@@ -35,10 +35,10 @@ var peepeeDefinitions = []string{
 	"has equipped a stealth mode",
 }
 
-// getRandomPhrase returns a random phrase with username from the peepee definitions
-func getRandomPhrase(username string) string {
+// getRandomPhrase returns a random phrase with display name from the peepee definitions
+func getRandomPhrase(displayName string) string {
 	definition := peepeeDefinitions[rng.Intn(len(peepeeDefinitions))]
-	return fmt.Sprintf("%s %s peepee!", username, definition)
+	return fmt.Sprintf("%s %s peepee!", displayName, definition)
 }
 
 // getUserAvatarURL gets the user's avatar URL with fallback to default
@@ -53,7 +53,13 @@ func getUserAvatarURL(user *discordgo.User) string {
 
 // createPeepeeEmbed creates an embed for the peepee command
 func createPeepeeEmbed(user *discordgo.User) *discordgo.MessageEmbed {
-	randomPhrase := getRandomPhrase(user.Username)
+	// Use GlobalName if available, otherwise fallback to Username
+	displayName := user.GlobalName
+	if displayName == "" {
+		displayName = user.Username
+	}
+
+	randomPhrase := getRandomPhrase(displayName)
 	avatarURL := getUserAvatarURL(user)
 
 	return &discordgo.MessageEmbed{
