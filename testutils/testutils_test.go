@@ -13,7 +13,7 @@ func TestMockSession(t *testing.T) {
 	// Test InteractionRespond
 	interaction := &discordgo.Interaction{}
 	response := &discordgo.InteractionResponse{}
-	
+
 	err := mock.InteractionRespond(interaction, response)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
@@ -31,7 +31,7 @@ func TestMockSession(t *testing.T) {
 
 func TestCreateTestUser(t *testing.T) {
 	user := CreateTestUser("123", "testuser", "avatar_hash")
-	
+
 	if user.ID != "123" {
 		t.Errorf("Expected ID '123', got '%s'", user.ID)
 	}
@@ -49,7 +49,7 @@ func TestCreateTestUser(t *testing.T) {
 func TestCreateTestMember(t *testing.T) {
 	user := CreateTestUser("456", "memberuser", "member_avatar")
 	member := CreateTestMember(user)
-	
+
 	if member.User != user {
 		t.Error("Expected member to have the provided user")
 	}
@@ -63,7 +63,7 @@ func TestCreateTestMember(t *testing.T) {
 
 func TestCreateTestGuild(t *testing.T) {
 	guild := CreateTestGuild("guild123", "Test Guild", 100)
-	
+
 	if guild.ID != "guild123" {
 		t.Errorf("Expected ID 'guild123', got '%s'", guild.ID)
 	}
@@ -85,9 +85,9 @@ func TestCreateTestInteraction(t *testing.T) {
 	options := []*discordgo.ApplicationCommandInteractionDataOption{
 		CreateStringOption("param1", "value1"),
 	}
-	
+
 	interaction := CreateTestInteraction("testcommand", options)
-	
+
 	if interaction.ID != "interaction_id_123" {
 		t.Errorf("Expected ID 'interaction_id_123', got '%s'", interaction.ID)
 	}
@@ -100,7 +100,7 @@ func TestCreateTestInteraction(t *testing.T) {
 	if interaction.ChannelID != "channel_id_123" {
 		t.Errorf("Expected channel ID 'channel_id_123', got '%s'", interaction.ChannelID)
 	}
-	
+
 	data := interaction.Data.(discordgo.ApplicationCommandInteractionData)
 	if data.Name != "testcommand" {
 		t.Errorf("Expected command name 'testcommand', got '%s'", data.Name)
@@ -112,7 +112,7 @@ func TestCreateTestInteraction(t *testing.T) {
 
 func TestCreateStringOption(t *testing.T) {
 	option := CreateStringOption("testparam", "testvalue")
-	
+
 	if option.Name != "testparam" {
 		t.Errorf("Expected name 'testparam', got '%s'", option.Name)
 	}
@@ -127,7 +127,7 @@ func TestCreateStringOption(t *testing.T) {
 func TestCreateUserOption(t *testing.T) {
 	user := CreateTestUser("789", "optionuser", "option_avatar")
 	option := CreateUserOption("targetuser", user)
-	
+
 	if option.Name != "targetuser" {
 		t.Errorf("Expected name 'targetuser', got '%s'", option.Name)
 	}
@@ -141,11 +141,11 @@ func TestCreateUserOption(t *testing.T) {
 
 func TestCreateTestEmojis(t *testing.T) {
 	emojis := CreateTestEmojis()
-	
+
 	if len(emojis) != 3 {
 		t.Errorf("Expected 3 emojis, got %d", len(emojis))
 	}
-	
+
 	for i, emoji := range emojis {
 		if emoji.ID == "" {
 			t.Errorf("Expected non-empty ID for emoji %d", i)
@@ -154,7 +154,7 @@ func TestCreateTestEmojis(t *testing.T) {
 			t.Errorf("Expected non-empty name for emoji %d", i)
 		}
 	}
-	
+
 	// Check that emojis are unique
 	ids := make(map[string]bool)
 	names := make(map[string]bool)
@@ -172,7 +172,7 @@ func TestCreateTestEmojis(t *testing.T) {
 
 func TestCreateTestMessage(t *testing.T) {
 	message := CreateTestMessage("msg123", "Hello world")
-	
+
 	if message.ID != "msg123" {
 		t.Errorf("Expected ID 'msg123', got '%s'", message.ID)
 	}
@@ -193,11 +193,11 @@ func TestCreateTestMessage(t *testing.T) {
 
 func TestMockSessionAdvanced(t *testing.T) {
 	mock := &MockSession{}
-	
+
 	// Test Guild method
 	testGuild := CreateTestGuild("test_guild", "Test Guild", 50)
 	mock.GuildReturn = testGuild
-	
+
 	guild, err := mock.Guild("test_guild")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
@@ -208,11 +208,11 @@ func TestMockSessionAdvanced(t *testing.T) {
 	if !mock.GuildCalled {
 		t.Error("Expected GuildCalled to be true")
 	}
-	
+
 	// Test Guild method with error
 	mock.Reset()
 	mock.GuildError = errors.New("guild error")
-	
+
 	guild, err = mock.Guild("test_guild")
 	if err == nil {
 		t.Error("Expected error but got none")
@@ -224,11 +224,11 @@ func TestMockSessionAdvanced(t *testing.T) {
 
 func TestMockSessionEmojis(t *testing.T) {
 	mock := &MockSession{}
-	
+
 	// Test GuildEmojis method
 	testEmojis := CreateTestEmojis()
 	mock.GuildEmojisReturn = testEmojis
-	
+
 	emojis, err := mock.GuildEmojis("guild123")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)

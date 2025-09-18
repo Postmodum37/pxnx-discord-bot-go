@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bot, err := New(tt.token)
-			
+
 			if tt.expectErr {
 				if err == nil {
 					t.Error("Expected error but got none")
@@ -108,7 +108,7 @@ func TestInteractionCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test interaction
 			var options []*discordgo.ApplicationCommandInteractionDataOption
-			
+
 			// Add required options for certain commands
 			switch tt.commandName {
 			case "8ball":

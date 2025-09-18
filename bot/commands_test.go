@@ -123,18 +123,18 @@ func TestGetCommands(t *testing.T) {
 		foundCommands[cmd.Name] = true
 
 		if cmd.Description != expected.description {
-			t.Errorf("Command %s: expected description '%s', got '%s'", 
+			t.Errorf("Command %s: expected description '%s', got '%s'",
 				cmd.Name, expected.description, cmd.Description)
 		}
 
 		if expected.hasOptions {
 			if len(cmd.Options) != expected.optionCount {
-				t.Errorf("Command %s: expected %d options, got %d", 
+				t.Errorf("Command %s: expected %d options, got %d",
 					cmd.Name, expected.optionCount, len(cmd.Options))
 			}
 		} else {
 			if len(cmd.Options) != 0 {
-				t.Errorf("Command %s: expected no options, got %d", 
+				t.Errorf("Command %s: expected no options, got %d",
 					cmd.Name, len(cmd.Options))
 			}
 		}
@@ -200,7 +200,7 @@ func TestGetCommandsOptionsValidation(t *testing.T) {
 				if !cityOption.Required {
 					t.Error("city option should be required")
 				}
-				
+
 				// Test duration option (optional)
 				durationOption := cmd.Options[1]
 				if durationOption.Name != "duration" {

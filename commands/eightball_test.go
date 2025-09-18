@@ -186,7 +186,7 @@ func TestEightBallResponsesNotEmpty(t *testing.T) {
 
 		// Check response length is reasonable
 		if len(response) > 30 {
-			t.Errorf("Response at index %d is too long (%d chars): %s", 
+			t.Errorf("Response at index %d is too long (%d chars): %s",
 				i, len(response), response)
 		}
 	}

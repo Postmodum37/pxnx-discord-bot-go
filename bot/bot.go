@@ -7,6 +7,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"pxnx-discord-bot/commands"
+	"pxnx-discord-bot/music/manager"
+	"pxnx-discord-bot/music/providers"
 )
 
 // Bot represents the Discord bot instance
@@ -28,7 +30,16 @@ func New(token string) (*Bot, error) {
 func (b *Bot) Setup() {
 	b.Session.AddHandler(b.ready)
 	b.Session.AddHandler(b.interactionCreate)
-	b.Session.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsGuildEmojis
+	b.Session.AddHandler(b.voiceStateUpdate)
+	b.Session.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsGuildEmojis | discordgo.IntentsGuildVoiceStates
+
+	// Initialize the music manager
+	sessionWrapper := manager.NewSessionWrapper(b.Session)
+	commands.MusicManager = manager.NewManager(sessionWrapper)
+
+	// Register audio providers
+	youtubeProvider := providers.NewYouTubeProvider()
+	commands.MusicManager.RegisterProvider(youtubeProvider)
 }
 
 // Start opens the Discord connection
@@ -58,28 +69,50 @@ func (b *Bot) ready(s *discordgo.Session, event *discordgo.Ready) {
 
 // interactionCreate handles interaction events
 func (b *Bot) interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Create session wrapper for all commands that use SessionInterface
+	sessionWrapper := manager.NewSessionWrapper(s)
+
 	var err error
 	switch i.ApplicationCommandData().Name {
 	case "ping":
-		err = commands.HandlePingCommand(s, i)
+		err = commands.HandlePingCommand(sessionWrapper, i)
 	case "peepee":
 		err = commands.HandlePeepeeCommandWithReaction(s, i)
 	case "8ball":
-		err = commands.Handle8BallCommand(s, i)
+		err = commands.Handle8BallCommand(sessionWrapper, i)
 	case "coinflip":
-		err = commands.HandleCoinFlipCommand(s, i)
+		err = commands.HandleCoinFlipCommand(sessionWrapper, i)
 	case "server":
-		err = commands.HandleServerCommand(s, i)
+		err = commands.HandleServerCommand(sessionWrapper, i)
 	case "user":
-		err = commands.HandleUserCommand(s, i)
+		err = commands.HandleUserCommand(sessionWrapper, i)
 	case "weather":
-		err = commands.HandleWeatherCommand(s, i)
+		err = commands.HandleWeatherCommand(sessionWrapper, i)
 	case "roll":
-		err = commands.HandleRollCommand(s, i)
+		err = commands.HandleRollCommand(sessionWrapper, i)
+	case "join":
+		err = commands.HandleJoinCommand(sessionWrapper, i)
+	case "leave":
+		err = commands.HandleLeaveCommand(sessionWrapper, i)
+	case "play":
+		err = commands.HandlePlayCommand(sessionWrapper, i)
 	}
 
 	if err != nil {
 		log.Printf("Error handling command '%s': %v", i.ApplicationCommandData().Name, err)
+	}
+}
+
+// voiceStateUpdate handles voice state change events
+func (b *Bot) voiceStateUpdate(s *discordgo.Session, vsu *discordgo.VoiceStateUpdate) {
+	// Only process if we have a music manager
+	if commands.MusicManager == nil {
+		return
+	}
+
+	// Cast to the interface that has OnVoiceStateUpdate
+	if manager, ok := commands.MusicManager.(*manager.Manager); ok {
+		manager.OnVoiceStateUpdate(vsu.GuildID)
 	}
 }
 

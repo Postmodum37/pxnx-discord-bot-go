@@ -42,7 +42,7 @@ func CreateTestInteraction(commandName string, options []*discordgo.ApplicationC
 	resolved := &discordgo.ApplicationCommandInteractionDataResolved{
 		Users: make(map[string]*discordgo.User),
 	}
-	
+
 	for _, option := range options {
 		if option.Type == discordgo.ApplicationCommandOptionUser {
 			if userID, ok := option.Value.(string); ok {
@@ -97,7 +97,7 @@ func CreateUserOptionWithResolved(name string, user *discordgo.User, resolved *d
 		resolved.Users = make(map[string]*discordgo.User)
 	}
 	resolved.Users[user.ID] = user
-	
+
 	return &discordgo.ApplicationCommandInteractionDataOption{
 		Name:  name,
 		Type:  discordgo.ApplicationCommandOptionUser,

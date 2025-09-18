@@ -12,6 +12,35 @@ import (
 // Initialize random seed once for peepee command
 var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
+// sessionWrapper is a minimal wrapper to adapt *discordgo.Session to SessionInterface
+type sessionWrapper struct {
+	session *discordgo.Session
+}
+
+func (sw *sessionWrapper) InteractionRespond(interaction *discordgo.Interaction, resp *discordgo.InteractionResponse, options ...discordgo.RequestOption) error {
+	return sw.session.InteractionRespond(interaction, resp, options...)
+}
+
+func (sw *sessionWrapper) InteractionResponseEdit(interaction *discordgo.Interaction, newresp *discordgo.WebhookEdit, options ...discordgo.RequestOption) (*discordgo.Message, error) {
+	return sw.session.InteractionResponseEdit(interaction, newresp, options...)
+}
+
+func (sw *sessionWrapper) FollowupMessageCreate(interaction *discordgo.Interaction, wait bool, data *discordgo.WebhookParams, options ...discordgo.RequestOption) (*discordgo.Message, error) {
+	return sw.session.FollowupMessageCreate(interaction, wait, data, options...)
+}
+
+func (sw *sessionWrapper) Guild(guildID string, options ...discordgo.RequestOption) (*discordgo.Guild, error) {
+	return sw.session.Guild(guildID, options...)
+}
+
+func (sw *sessionWrapper) Channel(channelID string, options ...discordgo.RequestOption) (*discordgo.Channel, error) {
+	return sw.session.Channel(channelID, options...)
+}
+
+func (sw *sessionWrapper) State() *discordgo.State {
+	return sw.session.State
+}
+
 var peepeeDefinitions = []string{
 	"has a certified micro",
 	"is packing a pocket-sized",
@@ -99,7 +128,9 @@ func HandlePeepeeCommand(s SessionInterface, i *discordgo.InteractionCreate) err
 
 // HandlePeepeeCommandWithReaction handles the peepee command with emoji reaction
 func HandlePeepeeCommandWithReaction(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	err := HandlePeepeeCommand(s, i)
+	// Create a simple wrapper for the session since we need SessionInterface
+	sessionWrapper := &sessionWrapper{session: s}
+	err := HandlePeepeeCommand(sessionWrapper, i)
 	if err != nil {
 		return err
 	}

@@ -65,20 +65,20 @@ func TestGetWeatherData(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:          "city with spaces",
-			city:          "New York",
-			apiKey:        "test_api_key",
-			mockResponse:  `{"name": "New York", "main": {"temp": 20}, "weather": [{"main": "Clear"}], "wind": {"speed": 2}, "sys": {"country": "US"}}`,
-			mockStatus:    http.StatusOK,
-			expectError:   false,
+			name:         "city with spaces",
+			city:         "New York",
+			apiKey:       "test_api_key",
+			mockResponse: `{"name": "New York", "main": {"temp": 20}, "weather": [{"main": "Clear"}], "wind": {"speed": 2}, "sys": {"country": "US"}}`,
+			mockStatus:   http.StatusOK,
+			expectError:  false,
 		},
 		{
-			name:          "city with special characters",
-			city:          "São Paulo",
-			apiKey:        "test_api_key",
-			mockResponse:  `{"name": "São Paulo", "main": {"temp": 25}, "weather": [{"main": "Rain"}], "wind": {"speed": 1}, "sys": {"country": "BR"}}`,
-			mockStatus:    http.StatusOK,
-			expectError:   false,
+			name:         "city with special characters",
+			city:         "São Paulo",
+			apiKey:       "test_api_key",
+			mockResponse: `{"name": "São Paulo", "main": {"temp": 25}, "weather": [{"main": "Rain"}], "wind": {"speed": 1}, "sys": {"country": "BR"}}`,
+			mockStatus:   http.StatusOK,
+			expectError:  false,
 		},
 		{
 			name:          "invalid city with real API",
@@ -104,7 +104,7 @@ func TestGetWeatherData(t *testing.T) {
 				server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					// Verify query parameters
 					if !strings.Contains(r.URL.Query().Get("q"), strings.ReplaceAll(tt.city, " ", "%20")) &&
-					   !strings.Contains(r.URL.Query().Get("q"), tt.city) {
+						!strings.Contains(r.URL.Query().Get("q"), tt.city) {
 						t.Errorf("Expected city parameter to contain '%s'", tt.city)
 					}
 					if r.URL.Query().Get("appid") != tt.apiKey {
@@ -208,7 +208,7 @@ func TestWeatherDataStructure(t *testing.T) {
 		t.Errorf("Expected 1 weather item, got %d", len(unmarshaled.Weather))
 	} else {
 		if unmarshaled.Weather[0].Main != testData.Weather[0].Main {
-			t.Errorf("Expected weather main '%s', got '%s'", 
+			t.Errorf("Expected weather main '%s', got '%s'",
 				testData.Weather[0].Main, unmarshaled.Weather[0].Main)
 		}
 	}
@@ -269,11 +269,11 @@ func TestGetWeatherDataURLEncoding(t *testing.T) {
 			// We can't easily test the actual URL construction without significant refactoring,
 			// but we can test that the function doesn't panic and handles the input
 			_, err := GetWeatherData(tt.city)
-			
+
 			// We expect this to fail with a network error since we're not mocking the HTTP call
 			// But it shouldn't fail with a URL encoding error
 			if err != nil && !strings.Contains(err.Error(), "failed to fetch weather data") &&
-			   !strings.Contains(err.Error(), "weather API returned status") {
+				!strings.Contains(err.Error(), "weather API returned status") {
 				// If it's not a network/API error, it might be a URL encoding issue
 				t.Logf("Error (expected for test): %v", err)
 			}

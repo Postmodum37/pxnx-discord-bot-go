@@ -117,6 +117,21 @@ func GetCommands() []*discordgo.ApplicationCommand {
 				createIntegerOption("max", "Maximum value for the dice roll (1-1000000)", false, func() *float64 { v := float64(1); return &v }(), func() *float64 { v := float64(1000000); return &v }()),
 			},
 		},
+		{
+			Name:        "join",
+			Description: "Join your voice channel to play music",
+		},
+		{
+			Name:        "leave",
+			Description: "Leave the voice channel and stop playing music",
+		},
+		{
+			Name:        "play",
+			Description: "Play music from a URL or search query",
+			Options: []*discordgo.ApplicationCommandOption{
+				createStringOption("query", "YouTube URL or search query", true),
+			},
+		},
 	}
 }
 

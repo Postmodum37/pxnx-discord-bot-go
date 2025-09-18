@@ -98,7 +98,7 @@ func TestGetUserAvatarURL(t *testing.T) {
 			}
 
 			if !strings.Contains(avatarURL, tt.expectContains) {
-				t.Errorf("Expected avatar URL to contain '%s', got '%s'", 
+				t.Errorf("Expected avatar URL to contain '%s', got '%s'",
 					tt.expectContains, avatarURL)
 			}
 		})
@@ -165,7 +165,7 @@ func TestCreatePeepeeEmbed(t *testing.T) {
 
 func TestGetRandomEmoji(t *testing.T) {
 	// Test fallback cases only since getRandomEmoji expects *discordgo.Session
-	
+
 	t.Run("nil session returns fallback", func(t *testing.T) {
 		result := getRandomEmoji(nil, "guild123")
 		if result != "🔍" {
@@ -180,7 +180,7 @@ func TestGetRandomEmoji(t *testing.T) {
 			t.Errorf("Expected fallback emoji '🔍', got '%s'", result)
 		}
 	})
-	
+
 	// Note: Testing with real Discord session would require more complex mocking
 	// as getRandomEmoji expects *discordgo.Session specifically, not our interface
 }
@@ -251,7 +251,7 @@ func TestPeepeeDefinitionsNotEmpty(t *testing.T) {
 
 		// Check that definitions are reasonable in length
 		if len(definition) > 50 {
-			t.Errorf("Definition at index %d is too long (%d chars): %s", 
+			t.Errorf("Definition at index %d is too long (%d chars): %s",
 				i, len(definition), definition)
 		}
 	}

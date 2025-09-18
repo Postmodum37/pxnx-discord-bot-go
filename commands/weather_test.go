@@ -189,7 +189,7 @@ func TestHandleWeatherCommand(t *testing.T) {
 				}
 
 				embed := mockSession.RespondData.Embeds[0]
-				
+
 				// For error cases, check error embed
 				if tt.apiKey == "" {
 					if !strings.Contains(embed.Title, "Weather Error") {
@@ -203,7 +203,7 @@ func TestHandleWeatherCommand(t *testing.T) {
 				// Check that footer is present for weather embeds
 				if embed.Footer != nil {
 					if embed.Footer.Text != "Powered by OpenWeatherMap" {
-						t.Errorf("Expected footer 'Powered by OpenWeatherMap', got '%s'", 
+						t.Errorf("Expected footer 'Powered by OpenWeatherMap', got '%s'",
 							embed.Footer.Text)
 					}
 				}

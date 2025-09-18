@@ -118,7 +118,7 @@ func GetForecastData(city string, days int) (*ForecastData, error) {
 
 	// URL encode the city name to handle spaces and special characters
 	encodedCity := url.QueryEscape(city)
-	
+
 	// Calculate count based on days (forecast API provides data every 3 hours)
 	// For 1 day: 8 entries (24 hours / 3 hours per entry)
 	// For 7 days: we'll get 5 days max from the free API
@@ -163,13 +163,13 @@ func ProcessDailyForecasts(forecastData *ForecastData) []DailyForecast {
 		// Initialize daily forecast if not exists
 		if _, exists := dailyMap[dateKey]; !exists {
 			dailyMap[dateKey] = &DailyForecast{
-				Date:      date,
-				TempMin:   entry.Main.TempMin,
-				TempMax:   entry.Main.TempMax,
-				Condition: entry.Weather[0].Main,
+				Date:        date,
+				TempMin:     entry.Main.TempMin,
+				TempMax:     entry.Main.TempMax,
+				Condition:   entry.Weather[0].Main,
 				Description: entry.Weather[0].Description,
-				Humidity:  entry.Main.Humidity,
-				WindSpeed: entry.Wind.Speed,
+				Humidity:    entry.Main.Humidity,
+				WindSpeed:   entry.Wind.Speed,
 			}
 		} else {
 			// Update min/max temperatures

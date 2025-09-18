@@ -6,14 +6,24 @@ require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/text v0.3.3
+	golang.org/x/text v0.22.0
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/bitly/go-simplejson v0.5.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/dop251/goja v0.0.0-20250125213203-5ef83b82af17 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
+	github.com/google/pprof v0.0.0-20250208200701-d0013a598941 // indirect
+	github.com/gorilla/schema v1.4.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/jonas747/dca v0.0.0-20210930103944-155f5e5f0cc7 // indirect
+	github.com/jonas747/ogg v0.0.0-20161220051205-b4f6f4cf3757 // indirect
+	github.com/kkdai/youtube/v2 v2.10.4 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
-	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	layeh.com/gopus v0.0.0-20210501142526-1ee02d434e32 // indirect
 )

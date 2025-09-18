@@ -12,11 +12,11 @@ import (
 
 func TestHandleUserCommand(t *testing.T) {
 	tests := []struct {
-		name           string
+		name             string
 		setupInteraction func() *discordgo.InteractionCreate
-		setupMock      func(*testutils.MockSession)
-		expectedError  bool
-		expectedTitle  string
+		setupMock        func(*testutils.MockSession)
+		expectedError    bool
+		expectedTitle    string
 	}{
 		{
 			name: "show command invoker info",

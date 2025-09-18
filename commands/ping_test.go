@@ -56,7 +56,7 @@ func TestHandlePingCommand(t *testing.T) {
 
 			if !tt.expectError && mockSession.RespondData != nil {
 				if mockSession.RespondData.Content != tt.expectContent {
-					t.Errorf("Expected content '%s', got '%s'", 
+					t.Errorf("Expected content '%s', got '%s'",
 						tt.expectContent, mockSession.RespondData.Content)
 				}
 			}
