@@ -91,7 +91,7 @@ func TestCreateUserOption(t *testing.T) {
 func TestGetCommands(t *testing.T) {
 	commands := GetCommands()
 
-	expectedCount := 7
+	expectedCount := 11
 	if len(commands) != expectedCount {
 		t.Errorf("Expected %d commands, got %d", expectedCount, len(commands))
 	}
@@ -109,6 +109,10 @@ func TestGetCommands(t *testing.T) {
 		"server":   {"Provides information about the server", false, 0},
 		"user":     {"Replies with user info!", true, 1},
 		"weather":  {"Get the weather forecast for a city", true, 2},
+		"roll":     {"Roll a dice with specified maximum value (default: 100)", true, 1},
+		"join":     {"Join your voice channel to play music", false, 0},
+		"leave":    {"Leave the voice channel and stop playing music", false, 0},
+		"play":     {"Play music from a URL or search query", true, 1},
 	}
 
 	foundCommands := make(map[string]bool)

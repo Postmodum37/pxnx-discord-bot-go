@@ -62,8 +62,8 @@ func TestBotSetup(t *testing.T) {
 	// Setup the bot - we can't directly test handlers as they're unexported
 	bot.Setup()
 
-	// Check intents
-	expectedIntents := discordgo.IntentsGuildMessages | discordgo.IntentsGuildEmojis
+	// Check intents (includes voice states for music functionality)
+	expectedIntents := discordgo.IntentsGuildMessages | discordgo.IntentsGuildEmojis | discordgo.IntentsGuildVoiceStates
 	if bot.Session.Identify.Intents != expectedIntents {
 		t.Errorf("Expected intents %d, got %d", expectedIntents, bot.Session.Identify.Intents)
 	}

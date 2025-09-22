@@ -426,3 +426,5 @@ if err != nil {
 ---
 
 **Remember**: This project emphasizes **quality over speed**. Always prioritize proper testing, clean architecture, and maintainable code over quick implementations.
+
+- Always double-check package dependencies if they are legit, supported and maintained. Don't over use it, but use it where it seems necessary.

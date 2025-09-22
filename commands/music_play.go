@@ -1,54 +1,49 @@
 package commands
 
 import (
-	"context"
 	"fmt"
-	"log"
-	"strings"
-	"time"
-
-	"pxnx-discord-bot/music/types"
+	"pxnx-discord-bot/music"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-// HandlePlayCommand handles the /play slash command
+// SimplePlayer is a global instance of the simplified music player
+var SimplePlayer *music.SimplePlayer
+
+// InitializeSimplePlayer initializes the global simple player
+func InitializeSimplePlayer(session *discordgo.Session) {
+	SimplePlayer = music.NewSimplePlayer(session)
+}
+
+// HandlePlayCommand handles the /play slash command using the simplified approach
 func HandlePlayCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
-	// Immediately defer the response to avoid timeout
+	// Defer response to avoid timeout
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to defer response: %w", err)
 	}
 
-	// Check if music manager is initialized
-	if MusicManager == nil {
-		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Content: &[]string{"❌ Music system is not available."}[0],
-		})
-		return editErr
+	// Check if simple player is initialized
+	if SimplePlayer == nil {
+		return respondWithError(s, i, "Music system is not available")
 	}
 
-	// Get the query/URL from command options
+	// Get the query from command options
 	var query string
 	if len(i.ApplicationCommandData().Options) > 0 {
 		query = i.ApplicationCommandData().Options[0].StringValue()
 	}
 
 	if query == "" {
-		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Content: &[]string{"❌ Please provide a song URL or search query."}[0],
-		})
-		return editErr
+		return respondWithError(s, i, "Please provide a song name or YouTube URL")
 	}
 
 	// Check if bot is connected to a voice channel
-	if !MusicManager.IsConnected(i.GuildID) {
-		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Content: &[]string{"❌ I need to be in a voice channel to play music. Use `/join` first."}[0],
-		})
-		return editErr
+	player, connected := SimplePlayer.GetPlayer(i.GuildID)
+	if !connected {
+		return respondWithError(s, i, "I need to be in a voice channel first. Use `/join` command")
 	}
 
 	// Send searching status
@@ -56,130 +51,78 @@ func HandlePlayCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 		Content: &[]string{"🔍 Searching for music..."}[0],
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update response: %w", err)
 	}
 
-	// Create context with timeout ONLY for the search operation
-	searchCtx, searchCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer searchCancel()
-
-	// Try to get audio source from YouTube provider
-	log.Printf("[MUSIC] Getting audio source for query: %s", query)
-	audioSource, err := getAudioSourceFromQuery(searchCtx, query)
+	// Try to play the track
+	track, err := SimplePlayer.Play(i.GuildID, query)
 	if err != nil {
-		log.Printf("[MUSIC] Failed to get audio source: %v", err)
-		// Edit the message with error
-		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Content: &[]string{fmt.Sprintf("❌ Failed to find audio: %v", err)}[0],
-		})
-		if editErr != nil {
-			return editErr
-		}
-		return nil
-	}
-	log.Printf("[MUSIC] Successfully got audio source: %s", audioSource.Title)
-
-	// Create a separate long-running context for playback (no timeout)
-	playCtx := context.Background()
-	log.Printf("[MUSIC] Starting playback with background context")
-
-	// Try to play the audio
-	err = MusicManager.Play(playCtx, i.GuildID, *audioSource)
-	if err != nil {
-		// Edit the message with error
-		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-			Content: &[]string{fmt.Sprintf("❌ Failed to play audio: %v", err)}[0],
-		})
-		if editErr != nil {
-			return editErr
-		}
-		return nil
+		return respondWithError(s, i, fmt.Sprintf("Failed to play music: %v", err))
 	}
 
-	// Create success embed
+	// Create success response
+	var content string
+	var embed *discordgo.MessageEmbed
+
+	if player.IsPlaying() {
+		// Currently playing - added to queue
+		queuePosition := len(player.GetQueue())
+		content = fmt.Sprintf("🎵 Added to queue (position %d)", queuePosition)
+		embed = createTrackEmbed(track, "Added to Queue", 0x3498db) // Blue
+	} else {
+		// Started playing immediately
+		content = "🎵 Now playing"
+		embed = createTrackEmbed(track, "Now Playing", 0x1db954) // Spotify green
+	}
+
+	// Edit the response with success
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &content,
+		Embeds:  &[]*discordgo.MessageEmbed{embed},
+	})
+
+	return err
+}
+
+// Helper functions
+
+func createTrackEmbed(track *music.AudioTrack, title string, color int) *discordgo.MessageEmbed {
 	embed := &discordgo.MessageEmbed{
-		Title:       "🎵 Now Playing",
-		Description: fmt.Sprintf("**[%s](%s)**", audioSource.Title, audioSource.URL),
-		Color:       0x1DB954, // Spotify green
+		Title:       title,
+		Description: fmt.Sprintf("**[%s](%s)**", track.Title, track.URL),
+		Color:       color,
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:   "Duration",
-				Value:  audioSource.Duration,
+				Value:  track.Duration,
 				Inline: true,
 			},
 			{
 				Name:   "Provider",
-				Value:  strings.ToUpper(string(audioSource.Provider[0])) + audioSource.Provider[1:],
-				Inline: true,
-			},
-			{
-				Name:   "Requested by",
-				Value:  audioSource.RequestedBy,
+				Value:  "YouTube",
 				Inline: true,
 			},
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Use /pause, /skip, or /stop to control playback",
+			Text: "Simplified music player - no more EOF errors!",
 		},
 	}
 
-	if audioSource.Thumbnail != "" {
-		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
-			URL: audioSource.Thumbnail,
-		}
-	}
-
-	// Edit the message with success
-	_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Content: &[]string{""}[0], // Clear the "searching" message
-		Embeds:  &[]*discordgo.MessageEmbed{embed},
-	})
-	return editErr
+	return embed
 }
 
-// getAudioSourceFromQuery gets an AudioSource from a query using the first provider
-func getAudioSourceFromQuery(ctx context.Context, query string) (*types.AudioSource, error) {
-	// Get providers from the music manager
-	if MusicManager == nil {
-		return nil, fmt.Errorf("music manager is not initialized")
-	}
+func respondWithError(s SessionInterface, i *discordgo.InteractionCreate, message string) error {
+	_, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &[]string{fmt.Sprintf("❌ %s", message)}[0],
+	})
+	return err
+}
 
-	log.Printf("[MUSIC] Getting providers from music manager")
-	providers := MusicManager.GetProviders()
-	if len(providers) == 0 {
-		return nil, fmt.Errorf("no audio providers available")
-	}
-
-	log.Printf("[MUSIC] Found %d providers", len(providers))
-
-	// Try each provider until we find one that works
-	var lastErr error
-	for i, provider := range providers {
-		log.Printf("[MUSIC] Trying provider %d: %s", i+1, provider.GetProviderName())
-
-		// Try to get audio source
-		log.Printf("[MUSIC] Searching for: %s", query)
-		audioSource, err := provider.GetAudioSource(ctx, query)
-		if err != nil {
-			log.Printf("[MUSIC] Provider failed: %v", err)
-			lastErr = err
-			continue
-		}
-
-		if audioSource == nil {
-			log.Printf("[MUSIC] Provider returned nil audio source")
-			lastErr = fmt.Errorf("no audio found for query: %s", query)
-			continue
-		}
-
-		log.Printf("[MUSIC] Successfully found audio: %s", audioSource.Title)
-		// Set the requested by field (TODO: Get actual username from interaction)
-		audioSource.RequestedBy = "User"
-		return audioSource, nil
-	}
-
-	if lastErr != nil {
-		return nil, lastErr
-	}
-	return nil, fmt.Errorf("no suitable provider found for query: %s", query)
+func respondWithInteraction(s SessionInterface, i *discordgo.InteractionCreate, message string) error {
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: message,
+		},
+	})
 }

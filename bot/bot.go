@@ -1,22 +1,17 @@
 package bot
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 
 	"pxnx-discord-bot/commands"
-	"pxnx-discord-bot/music/manager"
-	"pxnx-discord-bot/music/providers"
 )
 
 // Bot represents the Discord bot instance
 type Bot struct {
-	Session      *discordgo.Session
-	ytdlpProvider *providers.YouTubeYTDLPProvider
+	Session *discordgo.Session
 }
 
 // New creates a new bot instance
@@ -33,19 +28,10 @@ func New(token string) (*Bot, error) {
 func (b *Bot) Setup() {
 	b.Session.AddHandler(b.ready)
 	b.Session.AddHandler(b.interactionCreate)
-	b.Session.AddHandler(b.voiceStateUpdate)
 	b.Session.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsGuildEmojis | discordgo.IntentsGuildVoiceStates
 
-	// Initialize the music manager
-	sessionWrapper := manager.NewSessionWrapper(b.Session)
-	commands.MusicManager = manager.NewManager(sessionWrapper)
-
-	// Register yt-dlp audio provider as the default
-	ytdlpProvider := providers.NewYouTubeYTDLPProvider()
-	commands.MusicManager.RegisterProvider(ytdlpProvider)
-
-	// Start yt-dlp service on bot ready
-	b.ytdlpProvider = ytdlpProvider
+	// Initialize the simplified music player
+	commands.InitializeSimplePlayer(b.Session)
 }
 
 // Start opens the Discord connection
@@ -53,41 +39,14 @@ func (b *Bot) Start() error {
 	return b.Session.Open()
 }
 
-// Stop closes the Discord connection and stops yt-dlp service
+// Stop closes the Discord connection
 func (b *Bot) Stop() error {
-	// Stop yt-dlp service first
-	if b.ytdlpProvider != nil {
-		fmt.Println("Stopping yt-dlp service...")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := b.ytdlpProvider.Stop(ctx); err != nil {
-			log.Printf("Warning: Failed to stop yt-dlp service cleanly: %v", err)
-		} else {
-			fmt.Println("yt-dlp service stopped.")
-		}
-	}
-
 	return b.Session.Close()
 }
 
 // ready handles the ready event
 func (b *Bot) ready(s *discordgo.Session, event *discordgo.Ready) {
 	fmt.Printf("Logged in as: %v#%v\n", s.State.User.Username, s.State.User.Discriminator)
-
-	// Start yt-dlp service
-	if b.ytdlpProvider != nil {
-		fmt.Println("Starting yt-dlp service...")
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := b.ytdlpProvider.Start(ctx); err != nil {
-			log.Printf("Warning: Failed to start yt-dlp service: %v", err)
-			log.Printf("Music functionality may be limited. Ensure Python and yt-dlp are installed.")
-		} else {
-			fmt.Println("yt-dlp service started successfully!")
-		}
-	}
 
 	if shouldRegisterCommands {
 		if err := RegisterCommands(s); err != nil {
@@ -102,33 +61,33 @@ func (b *Bot) ready(s *discordgo.Session, event *discordgo.Ready) {
 
 // interactionCreate handles interaction events
 func (b *Bot) interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// Create session wrapper for all commands that use SessionInterface
-	sessionWrapper := manager.NewSessionWrapper(s)
+	// Create a simple session interface for compatibility
+	sessionInterface := &SimpleSessionWrapper{session: s}
 
 	var err error
 	switch i.ApplicationCommandData().Name {
 	case "ping":
-		err = commands.HandlePingCommand(sessionWrapper, i)
+		err = commands.HandlePingCommand(sessionInterface, i)
 	case "peepee":
 		err = commands.HandlePeepeeCommandWithReaction(s, i)
 	case "8ball":
-		err = commands.Handle8BallCommand(sessionWrapper, i)
+		err = commands.Handle8BallCommand(sessionInterface, i)
 	case "coinflip":
-		err = commands.HandleCoinFlipCommand(sessionWrapper, i)
+		err = commands.HandleCoinFlipCommand(sessionInterface, i)
 	case "server":
-		err = commands.HandleServerCommand(sessionWrapper, i)
+		err = commands.HandleServerCommand(sessionInterface, i)
 	case "user":
-		err = commands.HandleUserCommand(sessionWrapper, i)
+		err = commands.HandleUserCommand(sessionInterface, i)
 	case "weather":
-		err = commands.HandleWeatherCommand(sessionWrapper, i)
+		err = commands.HandleWeatherCommand(sessionInterface, i)
 	case "roll":
-		err = commands.HandleRollCommand(sessionWrapper, i)
+		err = commands.HandleRollCommand(sessionInterface, i)
 	case "join":
-		err = commands.HandleJoinCommand(sessionWrapper, i)
+		err = commands.HandleJoinCommand(sessionInterface, i)
 	case "leave":
-		err = commands.HandleLeaveCommand(sessionWrapper, i)
+		err = commands.HandleLeaveCommand(sessionInterface, i)
 	case "play":
-		err = commands.HandlePlayCommand(sessionWrapper, i)
+		err = commands.HandlePlayCommand(sessionInterface, i)
 	}
 
 	if err != nil {
@@ -136,17 +95,33 @@ func (b *Bot) interactionCreate(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 }
 
-// voiceStateUpdate handles voice state change events
-func (b *Bot) voiceStateUpdate(s *discordgo.Session, vsu *discordgo.VoiceStateUpdate) {
-	// Only process if we have a music manager
-	if commands.MusicManager == nil {
-		return
-	}
+// SimpleSessionWrapper provides a simple implementation of SessionInterface
+type SimpleSessionWrapper struct {
+	session *discordgo.Session
+}
 
-	// Cast to the interface that has OnVoiceStateUpdate
-	if manager, ok := commands.MusicManager.(*manager.Manager); ok {
-		manager.OnVoiceStateUpdate(vsu.GuildID)
-	}
+func (s *SimpleSessionWrapper) InteractionRespond(interaction *discordgo.Interaction, resp *discordgo.InteractionResponse, options ...discordgo.RequestOption) error {
+	return s.session.InteractionRespond(interaction, resp, options...)
+}
+
+func (s *SimpleSessionWrapper) InteractionResponseEdit(interaction *discordgo.Interaction, edit *discordgo.WebhookEdit, options ...discordgo.RequestOption) (*discordgo.Message, error) {
+	return s.session.InteractionResponseEdit(interaction, edit, options...)
+}
+
+func (s *SimpleSessionWrapper) FollowupMessageCreate(interaction *discordgo.Interaction, wait bool, data *discordgo.WebhookParams, options ...discordgo.RequestOption) (*discordgo.Message, error) {
+	return s.session.FollowupMessageCreate(interaction, wait, data, options...)
+}
+
+func (s *SimpleSessionWrapper) Guild(guildID string, options ...discordgo.RequestOption) (*discordgo.Guild, error) {
+	return s.session.Guild(guildID, options...)
+}
+
+func (s *SimpleSessionWrapper) Channel(channelID string, options ...discordgo.RequestOption) (*discordgo.Channel, error) {
+	return s.session.Channel(channelID, options...)
+}
+
+func (s *SimpleSessionWrapper) State() *discordgo.State {
+	return s.session.State
 }
 
 // Global flag for command registration (will be set from main)
