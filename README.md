@@ -1,138 +1,248 @@
 # PXNX Discord Bot
 
-A simple Discord bot written in Go using the discordgo library. This bot provides various slash commands with interactive features and real-time data integration.
+A modern Discord bot written in Go following TDD principles and best practices. Features include interactive commands, real-time weather data, and a production-ready music system with YouTube integration.
 
-## Features
+## 🚀 Features
 
-- **`/ping`** - Simple ping-pong response
-- **`/peepee`** - Interactive inspection command with random funny definitions and emoji reactions
-- **`/8ball`** - Magic 8-ball with 20 classic responses
-- **`/coinflip`** - Random heads/tails coin flip
-- **`/roll`** - Roll a dice with customizable maximum value (default: 1-100, supports 1-1000000)
-- **`/server`** - Display server information (member count, creation date, etc.)
-- **`/user`** - Show user profile information with optional target parameter
-- **`/weather`** - Real weather data powered by OpenWeatherMap API
-- Graceful shutdown on CTRL+C
-- Manual command registration with `--register-commands` flag (includes cleanup of old commands)
-- Fast startup without automatic command registration
+### 🎵 Music System
+- **`/join`** - Connect bot to voice channel with validation
+- **`/leave`** - Disconnect and cleanup resources
+- **`/play <song name or URL>`** - YouTube integration with search
+  - Search by query: `/play lofi hip hop`
+  - Direct URLs: `/play https://youtu.be/VIDEO_ID`
+  - Rich embeds with metadata and thumbnails
+  - ⚠️ **Current Status**: Infrastructure complete, investigating audio streaming issues
 
-## Quick Setup
+### 🎮 Commands
+- **`/ping`** - Bot responsiveness test
+- **`/peepee`** - Interactive command with emoji reactions
+- **`/8ball`** - Magic 8-ball responses
+- **`/coinflip`** - Random coin flip
+- **`/roll [max]`** - Dice rolling (1-1000000)
+- **`/server`** - Server information display
+- **`/user [target]`** - User profile information
+- **`/weather <location>`** - Real weather data via OpenWeatherMap
 
-1. **Clone and install dependencies**:
-   ```bash
-   git clone <repository-url>
-   cd pxnx-discord-bot-go
-   go mod tidy
-   ```
+### 🛠️ System Features
+- **Event-driven architecture** with Discord gateway events
+- **Service-oriented design** with separate yt-dlp HTTP service
+- **Thread-safe operations** with comprehensive error handling
+- **Production Docker deployment** with multi-architecture support
+- **TDD development workflow** with comprehensive test coverage
 
-2. **Set up environment variables**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your actual tokens
-   ```
+## 📋 Quick Start
 
-3. **Required environment variables**:
-   - `DISCORD_BOT_TOKEN`: Your Discord bot token
-   - `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key ([get one free](https://openweathermap.org/api))
+### Prerequisites
+- **Go 1.25+**
+- **Python 3.10+** (for music functionality)
+- **Discord Bot Token** ([create here](https://discord.com/developers/applications))
+- **OpenWeatherMap API Key** ([get free](https://openweathermap.org/api))
 
-4. **Register slash commands** (only needed once):
-   ```bash
-   go run main.go --register-commands
-   ```
-
-5. **Run the bot**:
-   ```bash
-   go run main.go
-   ```
-
-### Hot Reload Development
-For development with automatic restart on file changes:
+### Setup
 ```bash
-# Install air (one-time setup)
-go install github.com/air-verse/air@latest
+# Clone repository
+git clone https://github.com/Postmodum37/pxnx-discord-bot-go.git
+cd pxnx-discord-bot-go
 
-# Run with hot reload (automatically restarts on .go file changes)
-air
+# Setup dependencies
+go mod tidy
+pip install -r services/ytdlp/requirements.txt
 
-# The configuration is in .air.toml and excludes test files and tmp directory
-```
+# Configure environment
+cp .env.example .env
+# Edit .env with your tokens
 
-## Usage
-
-### Command Registration
-The bot doesn't register slash commands automatically for faster startup times. You need to register them once:
-
-```bash
-# Register slash commands with Discord (only needed once or when commands change)
+# Register commands (first time only)
 go run main.go --register-commands
 
-# Normal bot startup (fast, no command registration)
+# Start bot
 go run main.go
+```
+
+### Hot Reload Development
+```bash
+# Install air for hot reload
+go install github.com/air-verse/air@latest
+
+# Run with automatic restart on file changes
+air
+```
+
+## 🧪 Development & Testing
+
+This project follows **Test-Driven Development (TDD)** principles and Go best practices.
+
+### Development Workflow
+```bash
+# Code quality checks
+make format         # Format code with goimports
+make lint          # Run golangci-lint
+make test          # Run all tests
+make dev-check     # Format + lint + test (pre-commit)
+
+# Testing
+go test             # Run all tests
+go test -v          # Verbose output
+go test -cover      # Coverage report
+go test -bench=.    # Benchmarks
+
+# Music system testing
+make test-ytdlp     # Test yt-dlp service integration
+make start-ytdlp    # Start yt-dlp service manually
+```
+
+### TDD Structure
+```
+internal/commands/
+├── ping.go
+├── ping_test.go          # Test-first development
+├── user.go
+├── user_test.go
+└── testdata/             # Test fixtures
+```
+
+### Test Categories
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: Cross-component interaction testing
+- **Music System Tests**: Audio pipeline and service integration
+- **Mock Testing**: Comprehensive mocking with testutils
+
+## 🏗️ Architecture
+
+### Project Structure (Pragmatic Go Layout)
+```
+pxnx-discord-bot-go/
+├── main.go               # Application entrypoint
+├── bot/                  # Core bot logic and session management
+├── commands/             # Discord command handlers
+├── music/                # Music system
+│   ├── manager/         # Voice connection management
+│   ├── player/          # DCA audio player
+│   ├── queue/           # Thread-safe queue
+│   ├── providers/       # Audio providers (YouTube)
+│   └── types/           # Interfaces and types
+├── services/             # External integrations
+│   ├── ytdlp/           # yt-dlp service integration
+│   └── weather.go       # OpenWeatherMap API
+├── testutils/            # Test utilities and mocks
+├── utils/                # Shared utility functions
+├── scripts/              # Build and deployment scripts
+├── go.mod               # Go module definition
+└── go.sum               # Go module checksums
+```
+
+**Note**: This project uses a pragmatic structure suitable for its size. While the [Go Standard Project Layout](https://github.com/golang-standards/project-layout) with `cmd/` and `internal/` is recommended for larger projects, the current structure provides good organization without unnecessary complexity.
+
+### Music System Architecture
+```
+Discord Command → Go Bot → yt-dlp Service → YouTube → Audio Stream → Discord Voice
+                    ↓
+              Service Manager → Python HTTP Server → yt-dlp Library
+                    ↓
+               DCA Audio Player → Voice Connection → Discord
+```
+
+## 🐳 Deployment
+
+### Docker (Recommended)
+```bash
+# Using Docker Compose
+cp .env.example .env     # Configure tokens
+docker-compose up -d     # Start bot
+docker-compose logs -f   # View logs
+
+# Register commands (first time)
+docker-compose exec pxnx-discord-bot ./pxnx-discord-bot --register-commands
+```
+
+### Manual Deployment
+```bash
+# Build binary
+go build -o pxnx-discord-bot .
+
+# Run with environment variables
+export DISCORD_BOT_TOKEN=your_token
+export OPENWEATHER_API_KEY=your_key
+./pxnx-discord-bot
+```
+
+### Docker Features
+- **Multi-architecture** (amd64/arm64)
+- **Automatic builds** on GitHub Actions
+- **Security scanning** with Trivy
+- **Minimal Alpine runtime** (~25MB)
+- **Complete dependencies** including Python/yt-dlp
+
+## ⚠️ Current Status & Known Issues
+
+### Working Components ✅
+- All Discord commands functional
+- Voice channel join/leave operations
+- YouTube URL extraction and metadata
+- Service management and health monitoring
+- Docker deployment and CI/CD
+
+### Active Issues 🔧
+- **Music Playback**: EOF errors during streaming (infrastructure complete, investigating audio pipeline)
+- **Root Cause**: YouTube stream URL expiration or DCA encoder compatibility
+- **Investigation**: Focusing on stream reconnection and format selection
+
+### Troubleshooting
+```bash
+# Check yt-dlp service health
+curl http://localhost:8080/health
+
+# View detailed logs
+go run main.go --log-level debug
+
+# Test components individually
+go test ./music/player -v
+go test ./services/ytdlp -v
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+```env
+# Required
+DISCORD_BOT_TOKEN=your_discord_bot_token
+OPENWEATHER_API_KEY=your_openweather_api_key
+
+# Optional
+LOG_LEVEL=info                    # debug, info, warn, error
+YTDLP_SERVICE_PORT=8080          # yt-dlp service port
 ```
 
 ### Command Line Options
 ```bash
-go run main.go --register-commands    # Register bot commands with Discord (cleans up existing commands first)
-go run main.go --help               # Show all available command line options
+go run main.go --register-commands    # Register slash commands
+go run main.go --log-level debug     # Enable debug logging
+go run main.go --help               # Show all options
 ```
 
-### Building
+## 🤝 Contributing
+
+1. **Follow TDD**: Write tests before implementation
+2. **Use Go conventions**: Follow standard project layout
+3. **Code quality**: Run `make dev-check` before commits
+4. **Documentation**: Update README for significant changes
+
+### Development Setup
 ```bash
-go build            # Build executable
-./pxnx-discord-bot   # Run the built executable
+# Install development tools
+make install-tools
+
+# Setup pre-commit hooks
+make setup-hooks
+
+# Verify setup
+make dev-check
 ```
 
-## Development
+## 📄 License
 
-### Code Quality Tools
-This project uses industry-standard Go linting and formatting tools:
+This project is open source under the MIT License. See [LICENSE](LICENSE) for details.
 
-```bash
-# Using Make commands (recommended)
-make help           # Show all available commands
-make format         # Format code with goimports
-make lint           # Run golangci-lint
-make check          # Format + lint
-make dev-check      # Format + lint + test (use before committing)
+---
 
-# Direct tool usage
-goimports -w *.go                    # Format code and organize imports
-golangci-lint run --timeout=2m      # Run comprehensive linter
-```
-
-**Required tools** (installed automatically via go install):
-- `goimports` - Code formatting and import organization
-- `golangci-lint` - Comprehensive Go linter with multiple checks
-
-### Testing
-```bash
-go test             # Run all tests
-go test -v          # Run tests with verbose output
-go test -bench=.    # Run tests with benchmarks
-go test -cover      # Run tests with coverage report
-```
-
-### Architecture
-- **Modular structure**: Organized into packages for better maintainability
-  - `bot/` - Core bot initialization and Discord session management
-  - `commands/` - Individual command handlers (ping, user, weather, etc.)
-  - `services/` - External service integrations (OpenWeatherMap API)
-  - `testutils/` - Test utilities, mocks, and fixtures
-- **Event-driven**: Uses Discord gateway events (ready, interactionCreate)
-- **Dependencies**: Uses `github.com/bwmarrin/discordgo v0.29.0` for Discord API interaction
-- **Intents**: Requires `GuildMessages` and `GuildEmojis` intents for message handling and emoji reactions
-- **Test coverage**: Comprehensive test suite with unit tests and benchmarks (33.1% coverage)
-
-## Environment Setup
-
-The bot automatically loads environment variables from a `.env` file if present. Alternatively, you can set environment variables manually:
-
-```bash
-export DISCORD_BOT_TOKEN=your_bot_token_here
-export OPENWEATHER_API_KEY=your_openweathermap_api_key_here
-go run main.go
-```
-
-## License
-
-This project is open source. Feel free to contribute or modify as needed.
+**Note**: This bot is actively developed with a focus on code quality, testing, and maintainability. The music system infrastructure is complete with ongoing work to resolve streaming stability.

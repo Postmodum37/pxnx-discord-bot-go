@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -161,13 +162,27 @@ func (m *Manager) LeaveChannel(ctx context.Context, guildID string) error {
 	return vc.Disconnect()
 }
 
+// isConnectedUnsafe checks if connected to a voice channel (must be called with lock held)
+func (m *Manager) isConnectedUnsafe(guildID string) bool {
+	log.Printf("[MANAGER] isConnectedUnsafe called for guild: %s", guildID)
+
+	log.Printf("[MANAGER] Getting voice connection for guild: %s", guildID)
+	vc := m.session.GetVoiceConnection(guildID)
+	log.Printf("[MANAGER] Voice connection result for guild %s: %v", guildID, vc != nil)
+	if vc != nil {
+		log.Printf("[MANAGER] Voice connection ready status for guild %s: %v", guildID, vc.Ready)
+	}
+
+	result := vc != nil && vc.Ready
+	log.Printf("[MANAGER] isConnectedUnsafe result for guild %s: %v", guildID, result)
+	return result
+}
+
 // IsConnected checks if connected to a voice channel
 func (m *Manager) IsConnected(guildID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-
-	vc := m.session.GetVoiceConnection(guildID)
-	return vc != nil && vc.Ready
+	return m.isConnectedUnsafe(guildID)
 }
 
 // Play starts playing an audio source
@@ -175,20 +190,26 @@ func (m *Manager) Play(ctx context.Context, guildID string, audioSource types.Au
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if !m.IsConnected(guildID) {
+	log.Printf("[MANAGER] Starting to play audio: %s for guild: %s", audioSource.Title, guildID)
+
+	if !m.isConnectedUnsafe(guildID) {
+		log.Printf("[MANAGER] Bot not connected to guild: %s", guildID)
 		return &types.VoiceChannelError{
 			Type:    "not_connected",
 			Message: "Bot is not connected to a voice channel",
 			GuildID: guildID,
 		}
 	}
+	log.Printf("[MANAGER] Bot is connected to guild: %s", guildID)
 
 	// Get or create player for this guild
 	audioPlayer, exists := m.players[guildID]
 	if !exists {
+		log.Printf("[MANAGER] Creating new audio player for guild: %s", guildID)
 		// Get voice connection for this guild
 		vc := m.session.GetVoiceConnection(guildID)
 		if vc == nil {
+			log.Printf("[MANAGER] No voice connection found for guild: %s", guildID)
 			return &types.VoiceChannelError{
 				Type:    "no_voice_connection",
 				Message: "No voice connection found for guild",
@@ -199,15 +220,26 @@ func (m *Manager) Play(ctx context.Context, guildID string, audioSource types.Au
 		// Create a new DCA audio player
 		audioPlayer = player.NewDCAAudioPlayer(guildID, vc)
 		m.players[guildID] = audioPlayer
+		log.Printf("[MANAGER] Audio player created for guild: %s", guildID)
+	} else {
+		log.Printf("[MANAGER] Using existing audio player for guild: %s", guildID)
 	}
 
 	// If something is already playing, add to queue
 	if audioPlayer.IsPlaying() {
+		log.Printf("[MANAGER] Audio already playing, adding to queue for guild: %s", guildID)
 		return m.AddToQueue(ctx, guildID, audioSource)
 	}
 
 	// Start playing
-	return audioPlayer.Play(ctx, audioSource)
+	log.Printf("[MANAGER] Starting playback for guild: %s", guildID)
+	err := audioPlayer.Play(ctx, audioSource)
+	if err != nil {
+		log.Printf("[MANAGER] Playback failed for guild: %s, error: %v", guildID, err)
+		return err
+	}
+	log.Printf("[MANAGER] Playback started successfully for guild: %s", guildID)
+	return nil
 }
 
 // Pause pauses playback

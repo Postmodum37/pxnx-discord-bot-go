@@ -3,10 +3,10 @@ package commands
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
-	"pxnx-discord-bot/music/providers"
 	"pxnx-discord-bot/music/types"
 
 	"github.com/bwmarrin/discordgo"
@@ -14,26 +14,20 @@ import (
 
 // HandlePlayCommand handles the /play slash command
 func HandlePlayCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
-	// Check if music manager is initialized
-	if MusicManager == nil {
-		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "❌ Music system is not available.",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
+	// Immediately defer the response to avoid timeout
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	if err != nil {
+		return err
 	}
 
-	// Check if bot is connected to a voice channel
-	if !MusicManager.IsConnected(i.GuildID) {
-		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "❌ I need to be in a voice channel to play music. Use `/join` first.",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
+	// Check if music manager is initialized
+	if MusicManager == nil {
+		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &[]string{"❌ Music system is not available."}[0],
 		})
+		return editErr
 	}
 
 	// Get the query/URL from command options
@@ -43,33 +37,37 @@ func HandlePlayCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 	}
 
 	if query == "" {
-		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "❌ Please provide a song URL or search query.",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
+		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &[]string{"❌ Please provide a song URL or search query."}[0],
 		})
+		return editErr
 	}
 
-	// Send initial response indicating we're searching
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "🔍 Searching for music...",
-		},
+	// Check if bot is connected to a voice channel
+	if !MusicManager.IsConnected(i.GuildID) {
+		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &[]string{"❌ I need to be in a voice channel to play music. Use `/join` first."}[0],
+		})
+		return editErr
+	}
+
+	// Send searching status
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &[]string{"🔍 Searching for music..."}[0],
 	})
 	if err != nil {
 		return err
 	}
 
-	// Create context with timeout for the search and play operation
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// Create context with timeout ONLY for the search operation
+	searchCtx, searchCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer searchCancel()
 
 	// Try to get audio source from YouTube provider
-	audioSource, err := getAudioSourceFromQuery(ctx, query)
+	log.Printf("[MUSIC] Getting audio source for query: %s", query)
+	audioSource, err := getAudioSourceFromQuery(searchCtx, query)
 	if err != nil {
+		log.Printf("[MUSIC] Failed to get audio source: %v", err)
 		// Edit the message with error
 		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 			Content: &[]string{fmt.Sprintf("❌ Failed to find audio: %v", err)}[0],
@@ -79,9 +77,14 @@ func HandlePlayCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 		}
 		return nil
 	}
+	log.Printf("[MUSIC] Successfully got audio source: %s", audioSource.Title)
+
+	// Create a separate long-running context for playback (no timeout)
+	playCtx := context.Background()
+	log.Printf("[MUSIC] Starting playback with background context")
 
 	// Try to play the audio
-	err = MusicManager.Play(ctx, i.GuildID, *audioSource)
+	err = MusicManager.Play(playCtx, i.GuildID, *audioSource)
 	if err != nil {
 		// Edit the message with error
 		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
@@ -134,36 +137,49 @@ func HandlePlayCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 	return editErr
 }
 
-// getAudioSourceFromQuery gets an AudioSource from a query using YouTube provider
+// getAudioSourceFromQuery gets an AudioSource from a query using the first provider
 func getAudioSourceFromQuery(ctx context.Context, query string) (*types.AudioSource, error) {
-	// For now, we'll use the YouTube provider directly since it's the only one we have
-	// TODO: In the future, make this more dynamic to support multiple providers
-
-	// Import the provider here to avoid circular dependencies
-	youtubeProvider := getYouTubeProvider()
-	if youtubeProvider == nil {
-		return nil, fmt.Errorf("YouTube provider not available")
+	// Get providers from the music manager
+	if MusicManager == nil {
+		return nil, fmt.Errorf("music manager is not initialized")
 	}
 
-	// Try to get audio source
-	audioSource, err := youtubeProvider.GetAudioSource(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get audio source: %w", err)
+	log.Printf("[MUSIC] Getting providers from music manager")
+	providers := MusicManager.GetProviders()
+	if len(providers) == 0 {
+		return nil, fmt.Errorf("no audio providers available")
 	}
 
-	if audioSource == nil {
-		return nil, fmt.Errorf("no audio found for query: %s", query)
+	log.Printf("[MUSIC] Found %d providers", len(providers))
+
+	// Try each provider until we find one that works
+	var lastErr error
+	for i, provider := range providers {
+		log.Printf("[MUSIC] Trying provider %d: %s", i+1, provider.GetProviderName())
+
+		// Try to get audio source
+		log.Printf("[MUSIC] Searching for: %s", query)
+		audioSource, err := provider.GetAudioSource(ctx, query)
+		if err != nil {
+			log.Printf("[MUSIC] Provider failed: %v", err)
+			lastErr = err
+			continue
+		}
+
+		if audioSource == nil {
+			log.Printf("[MUSIC] Provider returned nil audio source")
+			lastErr = fmt.Errorf("no audio found for query: %s", query)
+			continue
+		}
+
+		log.Printf("[MUSIC] Successfully found audio: %s", audioSource.Title)
+		// Set the requested by field (TODO: Get actual username from interaction)
+		audioSource.RequestedBy = "User"
+		return audioSource, nil
 	}
 
-	// Set the requested by field (would need to get from interaction context)
-	audioSource.RequestedBy = "User" // TODO: Get actual username from interaction
-	return audioSource, nil
-}
-
-// getYouTubeProvider creates a YouTube provider instance
-// This is a temporary solution until we have better provider management
-func getYouTubeProvider() types.AudioProvider {
-	// We'll import the providers package and create a new instance
-	// This avoids the need to access internal manager state
-	return providers.NewYouTubeProvider()
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, fmt.Errorf("no suitable provider found for query: %s", query)
 }

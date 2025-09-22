@@ -25,6 +25,7 @@ type SessionInterface interface {
 type MusicManager interface {
 	// Provider management
 	RegisterProvider(provider AudioProvider)
+	GetProviders() []AudioProvider
 
 	// Voice channel management
 	JoinChannel(ctx context.Context, guildID, channelID string) error
@@ -128,7 +129,8 @@ type AudioSource struct {
 	Thumbnail   string
 	Provider    string
 	RequestedBy string
-	StreamURL   string // The actual streaming URL for playback
+	StreamURL   string                 // The actual streaming URL for playback
+	Metadata    map[string]interface{} // Additional metadata for provider-specific data
 }
 
 // VoiceChannelError represents voice channel specific errors

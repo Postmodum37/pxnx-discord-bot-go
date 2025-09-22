@@ -1,8 +1,10 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -13,7 +15,8 @@ import (
 
 // Bot represents the Discord bot instance
 type Bot struct {
-	Session *discordgo.Session
+	Session      *discordgo.Session
+	ytdlpProvider *providers.YouTubeYTDLPProvider
 }
 
 // New creates a new bot instance
@@ -37,9 +40,12 @@ func (b *Bot) Setup() {
 	sessionWrapper := manager.NewSessionWrapper(b.Session)
 	commands.MusicManager = manager.NewManager(sessionWrapper)
 
-	// Register audio providers
-	youtubeProvider := providers.NewYouTubeProvider()
-	commands.MusicManager.RegisterProvider(youtubeProvider)
+	// Register yt-dlp audio provider as the default
+	ytdlpProvider := providers.NewYouTubeYTDLPProvider()
+	commands.MusicManager.RegisterProvider(ytdlpProvider)
+
+	// Start yt-dlp service on bot ready
+	b.ytdlpProvider = ytdlpProvider
 }
 
 // Start opens the Discord connection
@@ -47,14 +53,41 @@ func (b *Bot) Start() error {
 	return b.Session.Open()
 }
 
-// Stop closes the Discord connection
+// Stop closes the Discord connection and stops yt-dlp service
 func (b *Bot) Stop() error {
+	// Stop yt-dlp service first
+	if b.ytdlpProvider != nil {
+		fmt.Println("Stopping yt-dlp service...")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := b.ytdlpProvider.Stop(ctx); err != nil {
+			log.Printf("Warning: Failed to stop yt-dlp service cleanly: %v", err)
+		} else {
+			fmt.Println("yt-dlp service stopped.")
+		}
+	}
+
 	return b.Session.Close()
 }
 
 // ready handles the ready event
 func (b *Bot) ready(s *discordgo.Session, event *discordgo.Ready) {
 	fmt.Printf("Logged in as: %v#%v\n", s.State.User.Username, s.State.User.Discriminator)
+
+	// Start yt-dlp service
+	if b.ytdlpProvider != nil {
+		fmt.Println("Starting yt-dlp service...")
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := b.ytdlpProvider.Start(ctx); err != nil {
+			log.Printf("Warning: Failed to start yt-dlp service: %v", err)
+			log.Printf("Music functionality may be limited. Ensure Python and yt-dlp are installed.")
+		} else {
+			fmt.Println("yt-dlp service started successfully!")
+		}
+	}
 
 	if shouldRegisterCommands {
 		if err := RegisterCommands(s); err != nil {

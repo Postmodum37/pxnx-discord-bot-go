@@ -107,6 +107,8 @@ type MockMusicManager struct {
 	GetPlayerStatusError  error
 	CleanupCalled         bool
 	CleanupError          error
+	GetProvidersCalled    bool
+	GetProvidersReturn    []types.AudioProvider
 }
 
 // JoinChannel mocks joining a voice channel
@@ -225,6 +227,12 @@ func (m *MockMusicManager) RegisterProvider(provider types.AudioProvider) {
 	// For mock, we don't need to do anything
 }
 
+// GetProviders mocks getting all providers
+func (m *MockMusicManager) GetProviders() []types.AudioProvider {
+	m.GetProvidersCalled = true
+	return m.GetProvidersReturn
+}
+
 // Reset resets all mock state
 func (m *MockMusicManager) Reset() {
 	m.JoinChannelCalled = false
@@ -270,4 +278,6 @@ func (m *MockMusicManager) Reset() {
 	m.GetPlayerStatusError = nil
 	m.CleanupCalled = false
 	m.CleanupError = nil
+	m.GetProvidersCalled = false
+	m.GetProvidersReturn = nil
 }

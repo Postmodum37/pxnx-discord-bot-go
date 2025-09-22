@@ -1,291 +1,428 @@
-# CLAUDE.md
+# CLAUDE.md - AI Development Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides comprehensive guidance for AI assistants (Claude Code) when working with this Discord bot project. The project follows **Go best practices**, **Test-Driven Development (TDD)**, and **clean architecture principles**.
 
 ## Project Overview
 
-This is a simple Discord bot written in Go using the discordgo library. The bot has been refactored from a single-file application into a modular structure with organized packages for better maintainability and testing.
+**PXNX Discord Bot** is a production-ready Discord bot written in Go, featuring:
+- **Modern Go architecture** following standard project layout
+- **Test-Driven Development** with comprehensive test coverage
+- **Service-oriented design** with external service integrations
+- **Production deployment** via Docker with CI/CD pipeline
+- **Music system** with YouTube integration via yt-dlp service
 
-## Architecture
+## Go Best Practices & Project Structure
 
-- **Modular structure**: Organized into packages for better maintainability:
-  - `bot/` - Core bot initialization, Discord session management, and command routing
-  - `commands/` - Individual command handlers (ping, user, weather, peepee, 8ball, etc.)
-  - `services/` - External service integrations (OpenWeatherMap API)
-  - `testutils/` - Test utilities, mocks, and fixtures for comprehensive testing
-  - `utils/` - Shared utility functions (avatar handling, random selections)
-- **Event-driven**: Uses Discord gateway events (ready, interactionCreate)
-- **Dependencies**: Uses `github.com/bwmarrin/discordgo v0.29.0` for Discord API interaction
-- **Intents**: Requires `GuildMessages` and `GuildEmojis` intents for message handling and emoji reactions
+### Current Project Structure
 
-## Development Commands
+This project uses a pragmatic Go layout suitable for its size and complexity:
 
-### Setup
-```bash
-go mod tidy          # Download and organize dependencies
+```
+pxnx-discord-bot-go/
+├── main.go               # Application entrypoint
+├── bot/                  # Core bot logic and session management
+├── commands/             # Discord command handlers
+├── music/                # Music system (manager, player, queue, providers)
+│   ├── manager/         # Voice connection management
+│   ├── player/          # DCA audio player
+│   ├── queue/           # Thread-safe queue
+│   ├── providers/       # Audio providers (YouTube)
+│   └── types/           # Interfaces and types
+├── services/             # External service integrations
+│   ├── ytdlp/           # yt-dlp service integration
+│   └── weather.go       # OpenWeatherMap API
+├── testutils/            # Test utilities and mocks
+├── utils/                # Shared utility functions
+├── scripts/              # Build and deployment scripts
+├── go.mod               # Go module definition
+└── go.sum               # Go module checksums
 ```
 
-### Running the bot
+**Structure Notes**:
+- **Pragmatic over dogmatic**: While the [Go Standard Project Layout](https://github.com/golang-standards/project-layout) with `cmd/` and `internal/` is ideal for larger projects, this structure avoids unnecessary complexity
+- **Clear organization**: Each package has a focused responsibility
+- **Easy navigation**: Flat structure makes imports and navigation straightforward
+- **Test co-location**: Tests live alongside the code they test
 
-#### Local Development
-```bash
-# Copy .env.example to .env and add your tokens
-cp .env.example .env
-# Edit .env with your actual tokens
-# Then run the bot (it will automatically load .env)
-go run main.go
+### Key Architecture Principles
+
+#### 1. **Dependency Injection & Interfaces**
+```go
+// Good: Define interfaces in consuming packages
+type AudioPlayer interface {
+    Play(ctx context.Context, source AudioSource) error
+    Stop() error
+    IsPlaying() bool
+}
+
+// Implementation in separate package
+func NewDCAAudioPlayer(guildID string, conn *discordgo.VoiceConnection) AudioPlayer {
+    return &DCAAudioPlayer{...}
+}
 ```
 
-#### Hot Reload Development
-For development with automatic restart on file changes:
-```bash
-# Install air (one-time setup)
-go install github.com/air-verse/air@latest
-
-# Run with hot reload (automatically restarts on .go file changes)
-air
-
-# The configuration is in .air.toml and excludes test files and tmp directory
+#### 2. **Context Usage**
+```go
+// Always pass context as first parameter
+func (m *Manager) Play(ctx context.Context, guildID string, source AudioSource) error {
+    // Use context for cancellation and timeouts
+    select {
+    case <-ctx.Done():
+        return ctx.Err()
+    default:
+        // Continue with operation
+    }
+}
 ```
 
-Alternatively, you can set environment variables manually:
-```bash
-export DISCORD_BOT_TOKEN=your_bot_token_here
-export OPENWEATHER_API_KEY=your_openweathermap_api_key_here
-go run main.go
+#### 3. **Error Handling**
+```go
+// Wrap errors with context
+func (p *Provider) GetAudioSource(ctx context.Context, query string) (*AudioSource, error) {
+    data, err := p.fetchData(ctx, query)
+    if err != nil {
+        return nil, fmt.Errorf("failed to fetch audio source for %q: %w", query, err)
+    }
+    return p.parseData(data)
+}
 ```
 
-#### Docker Deployment (Production)
-The application is containerized and available via GitHub Container Registry:
+#### 4. **Package Organization**
+- **`internal/`**: Private application code, cannot be imported by external packages
+- **`pkg/`**: Public library code that can be reused
+- **Single responsibility**: Each package has a clear, focused purpose
+- **Minimal interfaces**: Keep interfaces small and focused
 
-```bash
-# 1. Create environment file
-cp .env.example .env
-# Edit .env with your actual tokens
+## Test-Driven Development (TDD)
 
-# 2. Pull and run with Docker Compose
-docker-compose pull
-docker-compose up -d
+### TDD Workflow
 
-# 3. View logs
-docker-compose logs -f
+1. **Write Test First** (Red)
+2. **Implement Minimum Code** (Green)
+3. **Refactor** (Refactor)
 
-# 4. Stop the bot
-docker-compose down
+### Test Structure
+
+#### Unit Tests
+```go
+// commands/ping_test.go
+func TestHandlePingCommand(t *testing.T) {
+    // Arrange
+    mockSession := &testutils.MockSession{}
+    interaction := testutils.CreateTestInteraction("ping", nil)
+
+    // Act
+    err := HandlePingCommand(mockSession, interaction)
+
+    // Assert
+    assert.NoError(t, err)
+    assert.Equal(t, "Pong!", mockSession.LastResponse.Content)
+}
 ```
 
-**Docker Image**: `ghcr.io/postmodum37/pxnx-discord-bot-go:latest`
-- Multi-architecture support (amd64/arm64)
-- Automatic builds on every commit
-- Security scanned with Trivy
-- Minimal Alpine-based runtime (~15MB)
+#### Integration Tests
+```go
+// test/integration/music_test.go
+func TestMusicSystemIntegration(t *testing.T) {
+    // Test complete workflow: join → play → leave
+    manager := setupTestMusicManager(t)
+    defer manager.Cleanup(context.Background())
 
-#### Command Registration
-The bot doesn't register slash commands automatically. You need to register them once:
-```bash
-# Register slash commands with Discord (only needed once or when commands change)
-go run main.go --register-commands
+    // Test actual voice connection and playback
+    err := manager.JoinChannel(ctx, testGuildID, testChannelID)
+    require.NoError(t, err)
 
-# Normal bot startup (fast, no command registration)
-go run main.go
+    source := testutils.CreateTestAudioSource()
+    err = manager.Play(ctx, testGuildID, source)
+    assert.NoError(t, err)
+}
 ```
 
-#### Command line options
-```bash
-go run main.go --register-commands    # Register bot commands with Discord (cleans up existing commands first)
-go run main.go --help               # Show all available command line options
+#### Test Organization
+- **File naming**: `*_test.go` in same package as code under test
+- **Test data**: Use `testdata/` directories for fixtures
+- **Mocks**: Centralized in `pkg/testutils/` for reuse
+- **Table tests**: Use for multiple test cases
+
+```go
+func TestUserCommand(t *testing.T) {
+    tests := []struct {
+        name           string
+        targetUserID   string
+        expectedResult string
+        expectError    bool
+    }{
+        {"valid user", "123456789", "User: TestUser#1234", false},
+        {"invalid user", "invalid", "", true},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Test implementation
+        })
+    }
+}
 ```
 
-### Building
-```bash
-go build            # Build executable
-./pxnx-discord-bot   # Run the built executable
+### Testing Guidelines
+
+#### What to Test
+- **All public functions**: Especially exported functions and methods
+- **Error conditions**: Test both happy path and error scenarios
+- **Business logic**: Core functionality and edge cases
+- **Integration points**: External service interactions
+
+#### What NOT to Test
+- **Third-party libraries**: Don't test discordgo, yt-dlp, etc.
+- **Simple getters/setters**: Unless they contain logic
+- **Private implementation details**: Test behavior, not implementation
+
+#### Mock Strategy
+```go
+// pkg/testutils/mocks.go
+type MockSession struct {
+    LastResponse *discordgo.InteractionResponse
+    ShouldError  bool
+}
+
+func (m *MockSession) InteractionRespond(
+    interaction *discordgo.Interaction,
+    resp *discordgo.InteractionResponse,
+) error {
+    if m.ShouldError {
+        return errors.New("mock error")
+    }
+    m.LastResponse = resp
+    return nil
+}
 ```
 
-### Testing
-```bash
-go test             # Run all tests
-go test -v          # Run tests with verbose output
-go test -bench=.    # Run tests with benchmarks
-go test -cover      # Run tests with coverage report
-```
+## Development Commands & Workflow
 
-### Code Quality (Linting & Formatting)
-The project uses industry-standard Go tools for code quality:
-
+### Essential Commands
 ```bash
-# Using Make commands (recommended)
-make help           # Show all available commands
+# Development workflow
 make format         # Format code with goimports
-make lint           # Run golangci-lint
-make check          # Format + lint
-make dev-check      # Format + lint + test (use before committing)
+make lint          # Run golangci-lint with comprehensive checks
+make test          # Run all tests with coverage
+make dev-check     # Run format + lint + test (pre-commit)
 
-# Direct tool usage
-goimports -w *.go                    # Format code and organize imports
-golangci-lint run --timeout=2m      # Run comprehensive linter
+# Testing
+go test ./...                    # Run all tests
+go test -v ./internal/commands   # Verbose output for specific package
+go test -race ./...              # Test for race conditions
+go test -cover ./...             # Coverage report
+go test -bench=. ./...           # Run benchmarks
+
+# Build and run
+go build .                       # Build binary
+go run . --help                  # Run with options
+air                              # Hot reload during development
 ```
 
-## Environment Configuration
+### Code Quality Tools
 
-The bot requires the following environment variables:
-- `DISCORD_BOT_TOKEN`: Your Discord bot token
-- `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key (get one free at https://openweathermap.org/api)
+#### Required Tools
+- **goimports**: Code formatting and import organization
+- **golangci-lint**: Comprehensive linting with multiple checkers
+- **air**: Hot reload for development
 
-The bot automatically loads environment variables from a `.env` file if present. Copy `.env.example` to `.env` and add your actual tokens, or set the environment variables manually.
+#### Linting Configuration
+The project uses `.golangci.yml` with strict settings:
+- **govet**: Suspicious constructs
+- **errcheck**: Unchecked errors
+- **staticcheck**: Advanced static analysis
+- **gocritic**: Code review automation
+- **gosec**: Security issues
+- **misspell**: Spelling errors
 
-## Bot Features
+## Service Architecture Patterns
 
-### Core Commands
-- **`/ping` command**: Simple ping-pong response
-- **`/peepee` command**: Interactive inspection command with random funny definitions and emoji reactions
-- **`/8ball` command**: Magic 8-ball with 20 classic responses
-- **`/coinflip` command**: Random heads/tails coin flip
-- **`/roll` command**: Roll a dice with customizable maximum value (default: 1-100, supports 1-1000000)
-- **`/server` command**: Display server information (member count, creation date, etc.)
-- **`/user` command**: Show user profile information with optional target parameter
-- **`/weather` command**: Real weather data powered by OpenWeatherMap API with support for current weather, 1-day, and 5-day forecasts
+### Music System Example
 
-### Music System (Infrastructure Complete - Audio Playback Issues)
-⚠️ **Current Status**: All infrastructure components working, but actual audio playback has intermittent failures with EOF errors
+The music system demonstrates proper Go architecture patterns:
 
-- **`/join` command**: ✅ Connect bot to your voice channel with validation and error handling
-- **`/leave` command**: ✅ Disconnect from voice channel and clean up all resources
-- **`/play` command**: ⚠️ **YouTube integration with known issues**
-  - ✅ **Real search functionality**: No API key required, uses yt-dlp's search capabilities
-  - ✅ **Direct URL support**: Complete URL parsing (youtube.com, youtu.be, mobile, shorts)
-  - ✅ **Rich embeds**: Metadata with thumbnails, duration, uploader, and view counts
-  - ⚠️ **Audio playback**: Stream URL extraction works but playback fails with EOF errors
+#### 1. **Interface Segregation**
+```go
+// Focused interfaces for specific responsibilities
+type AudioPlayer interface {
+    Play(ctx context.Context, source AudioSource) error
+    Stop() error
+    Pause() error
+    Resume() error
+}
 
-#### **🏗️ yt-dlp Service Architecture**
-- **Python HTTP Service**: Separate async service wrapping yt-dlp functionality
-- **Go HTTP Client**: Full-featured client with health checking and error recovery
-- **Service Manager**: Process lifecycle management with auto-start/stop/restart
-- **Circuit Breaker**: Resilience patterns with automatic retry logic and failure recovery
-- **Caching System**: TTL-based caching for improved performance and reduced load
+type Queue interface {
+    Add(source AudioSource)
+    Next() (*AudioSource, bool)
+    Clear()
+}
+```
 
-#### **🎵 Audio System**
-- **DCA Audio Player**: Production-ready audio player with volume control and playback management
-- **Queue System**: Thread-safe FIFO operations with add, remove, shuffle, and position-based management
-- **Voice Management**: Thread-safe connection handling with auto-disconnect timer
-- **Format Intelligence**: Automatic best audio format selection (opus/webm preferred)
+#### 2. **Dependency Injection**
+```go
+// Manager depends on interfaces, not concrete types
+type Manager struct {
+    session   SessionInterface      // Testable via interface
+    players   map[string]AudioPlayer
+    providers map[string]AudioProvider
+}
 
-#### **🔧 Production Features**
-- **Automatic Service Management**: yt-dlp service starts/stops with bot automatically
-- **Health Monitoring**: Continuous service health checking and status reporting
-- **Comprehensive Error Handling**: User-friendly error messages and proper resource cleanup
-- **Thread-Safe Operations**: All music operations are concurrent-safe
-- **Resource Management**: Proper cleanup and memory management
+func NewManager(session SessionInterface) *Manager {
+    return &Manager{
+        session:   session,
+        players:   make(map[string]AudioPlayer),
+        providers: make(map[string]AudioProvider),
+    }
+}
+```
 
-### System Features
-- Graceful shutdown on CTRL+C
-- Manual command registration with `--register-commands` flag (includes cleanup of old commands)
-- Fast startup without automatic command registration
+#### 3. **Service Integration**
+```go
+// External service with health monitoring
+type YouTubeProvider struct {
+    client         *ytdlp.Client
+    serviceManager *ytdlp.ServiceManager
+}
 
-## Code Structure
+func (p *YouTubeProvider) GetAudioSource(ctx context.Context, query string) (*AudioSource, error) {
+    // Health check before operation
+    if !p.serviceManager.IsRunning() {
+        if err := p.serviceManager.Start(ctx); err != nil {
+            return nil, fmt.Errorf("service unavailable: %w", err)
+        }
+    }
 
-### Package Organization
+    return p.client.Search(ctx, query)
+}
+```
 
-#### `bot/` Package
-- **`bot.go`**: Core bot structure, Discord session management, and initialization
-- **`commands.go`**: Command definitions and registration logic
-- **`handlers.go`**: Main interaction routing and command dispatch
+## Current System Status
 
-#### `commands/` Package
-- **`ping.go`**: Simple ping/pong response handler
-- **`peepee.go`**: Interactive inspection command with random phrases and emoji reactions
-- **`eightball.go`**: Magic 8-ball with predefined responses
-- **`coinflip.go`**: Coin flip randomization
-- **`roll.go`**: Dice rolling with customizable maximum values
-- **`user.go`**: User profile display with avatar and account information
-- **`server.go`**: Server/guild information display
-- **`weather.go`**: Weather command integrating with OpenWeatherMap API
-- **`music_join.go`**: Voice channel join/leave command handlers
-- **`music_play.go`**: Music playback command handler with full YouTube integration
-- **`interfaces.go`**: SessionInterface definition for testability
+### Working Components ✅
+- **Core Discord Integration**: Bot connection, command handling, event processing
+- **Command System**: All slash commands functional with proper error handling
+- **Music Infrastructure**: Voice connections, yt-dlp service, DCA player setup
+- **Service Management**: Health monitoring, auto-restart, error recovery
+- **Testing Framework**: Comprehensive test coverage with mocks and integration tests
+- **CI/CD Pipeline**: Docker builds, security scanning, automated deployment
 
-#### `services/` Package
-- **`weather.go`**: OpenWeatherMap API integration and data structures
-- **`ytdlp/`**: Complete yt-dlp service integration:
-  - **`server.py`**: Python HTTP service wrapping yt-dlp functionality
-  - **`client.go`**: Go HTTP client with health checking and error recovery
-  - **`manager.go`**: Service process lifecycle management
-  - **`types.go`**: Type definitions and data structures
-  - **`resilience.go`**: Circuit breaker and retry patterns
-  - **`requirements.txt`**: Python dependencies
+### Active Development Areas 🔧
+- **Audio Streaming**: Investigating EOF errors in DCA encoder pipeline
+- **Stream Reliability**: YouTube URL expiration and reconnection logic
+- **Performance Optimization**: Memory usage and connection pooling
 
-#### `music/` Package
-- **`types/interfaces.go`**: Core music system interfaces and type definitions (AudioPlayer, Queue, AudioProvider, MusicManager)
-- **`manager/manager.go`**: Music manager implementation with voice connection handling and provider management
-- **`manager/session_wrapper.go`**: Discord session wrapper for voice functionality
-- **`player/player.go`**: DCA audio player implementation with volume control and playback management
-- **`queue/queue.go`**: Thread-safe FIFO queue implementation with shuffle and position-based operations
-- **`providers/youtube.go`**: Legacy YouTube provider (basic functionality)
-- **`providers/youtube_ytdlp.go`**: **Production YouTube provider** with full yt-dlp integration
-- **`manager/ytdlp_integration.go`**: Integration helpers for yt-dlp service management
+### Investigation Priorities
+1. **Stream URL Lifetime**: Test YouTube URL validity duration
+2. **DCA Compatibility**: Alternative audio formats and encoder settings
+3. **Error Recovery**: Enhanced reconnection and retry mechanisms
 
-#### `utils/` Package
-- **`avatar.go`**: User avatar URL generation with fallbacks
-- **`random.go`**: Random phrase generation and emoji selection utilities
+## AI Assistant Guidelines
 
-#### `testutils/` Package
-- **`mocks.go`**: MockSession implementing SessionInterface for testing
-- **`music_mocks.go`**: Music system mocks for testing voice and audio functionality
-- **`fixtures.go`**: Test data factories (users, guilds, interactions, emojis)
+### When Working on This Project
 
-### Testing Structure
-- **Package-specific tests**: Each package has comprehensive test coverage
-- **Mock interfaces**: SessionInterface allows for isolated unit testing
-- **Music system testing**: Comprehensive mocks for voice connections, audio players, and queue management
-- **Test utilities**: Centralized mock creation and fixture generation
-- **Coverage**: Enhanced test coverage with music system additions
-- **Test organization**: Clear separation between unit tests, integration tests, and benchmarks
+#### 1. **Always Follow TDD**
+- Write tests before implementation
+- Use red-green-refactor cycle
+- Maintain high test coverage
 
-## Future Feature Roadmap
+#### 2. **Respect Go Conventions**
+- Use standard project layout
+- Follow naming conventions (PascalCase for exported, camelCase for private)
+- Implement proper error handling with wrapped errors
+- Use context.Context for cancellation and timeouts
 
-### 🎵 Music System (Infrastructure Complete - Debugging Phase)
-**✅ Completed Infrastructure:**
-- Voice channel join/leave with validation and error handling
-- **Full YouTube integration** with URL parsing, metadata extraction, and search functionality
-- **Complete `/play` command** with rich embeds and queue management
-- Thread-safe music manager with comprehensive testing and provider management
-- **DCA-ready audio player** with volume control, pause/resume, and track management
-- **Queue system** with FIFO operations, shuffle, and position-based management
-- Session wrapper for voice functionality with fixed auto-disconnect timer
-- **yt-dlp service integration** with HTTP client and service management
+#### 3. **Code Quality Checks**
+- Run `make dev-check` before suggesting code
+- Ensure linting passes
+- Verify test coverage doesn't decrease
 
-**🚧 Current Priority - Audio Streaming Fixes:**
-- **EOF Error Resolution**: Investigate YouTube stream URL lifetime and connection issues
-- **Stream Reconnection**: Implement robust reconnection for interrupted YouTube streams
-- **Alternative Audio Sources**: Test with non-YouTube sources to isolate issues
-- **Error Pattern Analysis**: Analyze timing and frequency of streaming failures
+#### 4. **Architecture Decisions**
+- Prefer interfaces over concrete types for dependencies
+- Keep packages focused and cohesive
+- Use dependency injection for testability
+- Implement proper error handling and logging
 
-**🎯 Future Enhancements:**
-- **Enhanced Commands**: `/queue`, `/skip`, `/pause`, `/resume`, `/stop`, `/volume`, `/now-playing`
-- **Advanced features**: Search result selection, playlist support, multiple provider support
-- **Quality Options**: Bitrate selection, audio format preferences
+#### 5. **Documentation**
+- Update README.md for user-facing changes
+- Update this CLAUDE.md for development workflow changes
+- Include code comments for complex business logic
+- Document public APIs with godoc-style comments
 
-### 🎮 RPG Game System
-- **Character creation** with classes and stats
-- **Combat system** with monsters, experience, and loot
-- **Inventory management** with gear and upgrades
+### Common Tasks & Patterns
 
-### 📈 Financial Data
-- **Stock market tracking** with price alerts and trends
-- **Cryptocurrency portfolio** management and price monitoring
+#### Adding New Commands
+```go
+// 1. Define test first
+func TestNewCommand(t *testing.T) {
+    mockSession := &testutils.MockSession{}
+    interaction := testutils.CreateTestInteraction("newcommand", nil)
 
-### 🎯 Gaming Integrations
-- **World of Warcraft** API for character/server data
-- **Archon.gg tier lists** for competitive game rankings
+    err := HandleNewCommand(mockSession, interaction)
 
-### 🤖 AI Integration
-- **AI chatbot** for conversational interactions and natural language responses
+    assert.NoError(t, err)
+    // Assert expected behavior
+}
 
-### 🛠️ Utility Commands
-- **Reminder system** for scheduled notifications
-- **Poll creation** with voting and results
-- **URL shortener** for Discord links
-- **Meme generator** with templates and custom text
-- **Trivia game** with categories and scoring
+// 2. Implement handler
+func HandleNewCommand(s SessionInterface, i *discordgo.InteractionCreate) error {
+    // Implementation
+}
 
-These features represent potential expansions to the bot's functionality. The music and RPG systems would be the most complex implementations, requiring additional dependencies and persistent data storage.
+// 3. Register in bot/commands.go
+// 4. Add to interaction handler in bot/handlers.go
+```
+
+#### Working with Music System
+```go
+// Always check service health first
+if !provider.IsServiceRunning() {
+    if err := provider.Start(ctx); err != nil {
+        return fmt.Errorf("service startup failed: %w", err)
+    }
+}
+
+// Use proper context handling
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+// Handle errors gracefully with user-friendly messages
+if err != nil {
+    return &types.MusicError{
+        Type:    "service_error",
+        Message: "Unable to process request. Please try again.",
+        Err:     err,
+    }
+}
+```
+
+### Testing Strategy
+
+#### For New Features
+1. **Unit tests** for core logic
+2. **Integration tests** for service interactions
+3. **Mock tests** for external dependencies
+4. **Error scenario tests** for robust error handling
+
+#### For Bug Fixes
+1. **Reproduce with test** that fails
+2. **Fix implementation** to make test pass
+3. **Add regression tests** to prevent future issues
+
+## Deployment & Production
+
+### Docker Best Practices
+- **Multi-stage builds** for minimal image size
+- **Non-root user** for security
+- **Health checks** for service monitoring
+- **Multi-architecture** support (amd64/arm64)
+
+### Environment Configuration
+- **Secure secrets** handling via environment variables
+- **Configuration validation** at startup
+- **Graceful shutdown** with proper cleanup
+- **Structured logging** for production monitoring
+
+---
+
+**Remember**: This project emphasizes **quality over speed**. Always prioritize proper testing, clean architecture, and maintainable code over quick implementations.

@@ -1,5 +1,12 @@
 version: '3.8'
 
+# Discord Bot with Full Music Functionality
+# Features:
+# - Complete yt-dlp integration for YouTube music
+# - Python HTTP service for audio extraction
+# - High-quality Discord voice streaming
+# - Automatic service management
+
 services:
   pxnx-discord-bot:
     # Use pre-built image from GitHub Container Registry
@@ -24,15 +31,19 @@ services:
     # Restart policy
     restart: unless-stopped
 
-    # Resource limits (optional)
+    # Resource limits (increased for yt-dlp service)
     deploy:
       resources:
         limits:
+          memory: 256M
+          cpus: '1.0'
+        reservations:
           memory: 128M
           cpus: '0.5'
-        reservations:
-          memory: 64M
-          cpus: '0.25'
+
+    # Volumes for yt-dlp cache
+    volumes:
+      - ytdlp-cache:/tmp/ytdlp-cache
 
     # Health check
     healthcheck:
@@ -53,14 +64,23 @@ services:
     security_opt:
       - no-new-privileges:true
 
-    # Read-only root filesystem (optional, if bot doesn't write files)
+    # Read-only root filesystem (disabled due to yt-dlp cache writes)
     # read_only: true
 
-    # Networks (optional, for custom networking)
-    # networks:
-    #   - bot-network
+    # Networks
+    networks:
+      - bot-network
 
-# Optional: Custom network
-# networks:
-#   bot-network:
-#     driver: bridge
+    # Ports (expose yt-dlp service port for health checks)
+    ports:
+      - "8080:8080"
+
+# Volumes
+volumes:
+  ytdlp-cache:
+    driver: local
+
+# Networks
+networks:
+  bot-network:
+    driver: bridge

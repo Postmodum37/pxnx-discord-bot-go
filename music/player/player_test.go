@@ -37,7 +37,7 @@ func TestNewDCAAudioPlayer(t *testing.T) {
 	guildID := "test-guild-123"
 	vc := mockVoiceConnection()
 
-	player := NewDCAAudioPlayer(guildID, vc)
+	player := NewDCAAudioPlayerForTesting(guildID, vc)
 
 	assert.NotNil(t, player)
 	assert.Equal(t, guildID, player.GetGuildID())
@@ -49,7 +49,7 @@ func TestNewDCAAudioPlayer(t *testing.T) {
 }
 
 func TestAudioPlayerVolume(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 
 	// Test default volume
 	assert.Equal(t, 50, player.GetVolume())
@@ -81,7 +81,7 @@ func TestAudioPlayerVolume(t *testing.T) {
 }
 
 func TestAudioPlayerPlay(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 	source := createTestAudioSource("test-song")
 	ctx := context.Background()
 
@@ -105,7 +105,7 @@ func TestAudioPlayerPlay(t *testing.T) {
 }
 
 func TestAudioPlayerStop(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 	source := createTestAudioSource("test-song")
 	ctx := context.Background()
 
@@ -130,7 +130,7 @@ func TestAudioPlayerStop(t *testing.T) {
 }
 
 func TestAudioPlayerPauseResume(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 	source := createTestAudioSource("test-song")
 	ctx := context.Background()
 
@@ -183,7 +183,7 @@ func TestAudioPlayerPauseResume(t *testing.T) {
 }
 
 func TestAudioPlayerMultiplePlayCalls(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 	source1 := createTestAudioSource("song1")
 	source2 := createTestAudioSource("song2")
 	ctx := context.Background()
@@ -206,7 +206,7 @@ func TestAudioPlayerMultiplePlayCalls(t *testing.T) {
 }
 
 func TestAudioPlayerCleanup(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 	source := createTestAudioSource("test-song")
 	ctx := context.Background()
 
@@ -228,7 +228,7 @@ func TestAudioPlayerCleanup(t *testing.T) {
 }
 
 func TestAudioPlayerContextCancellation(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 	source := createTestAudioSource("test-song")
 
 	// Create a context that we can cancel
@@ -253,7 +253,7 @@ func TestAudioPlayerContextCancellation(t *testing.T) {
 }
 
 func TestAudioPlayerWithNilVoiceConnection(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", nil)
+	player := NewDCAAudioPlayerForTesting("test-guild", nil)
 
 	assert.False(t, player.IsReady())
 	assert.Equal(t, "test-guild", player.GetGuildID())
@@ -268,7 +268,7 @@ func TestAudioPlayerWithNilVoiceConnection(t *testing.T) {
 }
 
 func TestAudioPlayerConcurrentOperations(t *testing.T) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 	source := createTestAudioSource("test-song")
 	ctx := context.Background()
 
@@ -310,7 +310,7 @@ func TestAudioPlayerInterfaceCompliance(t *testing.T) {
 	var _ types.AudioPlayer = (*DCAAudioPlayer)(nil)
 
 	// Runtime check with actual instance
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 	var audioPlayer types.AudioPlayer = player
 
 	assert.NotNil(t, audioPlayer)
@@ -321,7 +321,7 @@ func TestAudioPlayerInterfaceCompliance(t *testing.T) {
 
 // BenchmarkAudioPlayerVolumeOperations benchmarks volume get/set operations
 func BenchmarkAudioPlayerVolumeOperations(b *testing.B) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 
 	b.Run("SetVolume", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -338,7 +338,7 @@ func BenchmarkAudioPlayerVolumeOperations(b *testing.B) {
 
 // BenchmarkAudioPlayerStateChecks benchmarks state checking operations
 func BenchmarkAudioPlayerStateChecks(b *testing.B) {
-	player := NewDCAAudioPlayer("test-guild", mockVoiceConnection())
+	player := NewDCAAudioPlayerForTesting("test-guild", mockVoiceConnection())
 
 	b.Run("IsPlaying", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
