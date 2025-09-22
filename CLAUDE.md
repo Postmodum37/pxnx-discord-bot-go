@@ -146,17 +146,36 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **`/user` command**: Show user profile information with optional target parameter
 - **`/weather` command**: Real weather data powered by OpenWeatherMap API with support for current weather, 1-day, and 5-day forecasts
 
-### Music System (Production Ready)
-- **`/join` command**: Connect bot to your voice channel with validation and error handling
-- **`/leave` command**: Disconnect from voice channel and clean up all resources
-- **`/play` command**: **Full YouTube integration** - search by query or paste URLs, rich embeds with metadata
-- **YouTube Provider**: Complete URL parsing (youtube.com, youtu.be, mobile), metadata extraction, search functionality
+### Music System (Infrastructure Complete - Audio Playback Issues)
+⚠️ **Current Status**: All infrastructure components working, but actual audio playback has intermittent failures with EOF errors
+
+- **`/join` command**: ✅ Connect bot to your voice channel with validation and error handling
+- **`/leave` command**: ✅ Disconnect from voice channel and clean up all resources
+- **`/play` command**: ⚠️ **YouTube integration with known issues**
+  - ✅ **Real search functionality**: No API key required, uses yt-dlp's search capabilities
+  - ✅ **Direct URL support**: Complete URL parsing (youtube.com, youtu.be, mobile, shorts)
+  - ✅ **Rich embeds**: Metadata with thumbnails, duration, uploader, and view counts
+  - ⚠️ **Audio playback**: Stream URL extraction works but playback fails with EOF errors
+
+#### **🏗️ yt-dlp Service Architecture**
+- **Python HTTP Service**: Separate async service wrapping yt-dlp functionality
+- **Go HTTP Client**: Full-featured client with health checking and error recovery
+- **Service Manager**: Process lifecycle management with auto-start/stop/restart
+- **Circuit Breaker**: Resilience patterns with automatic retry logic and failure recovery
+- **Caching System**: TTL-based caching for improved performance and reduced load
+
+#### **🎵 Audio System**
+- **DCA Audio Player**: Production-ready audio player with volume control and playback management
 - **Queue System**: Thread-safe FIFO operations with add, remove, shuffle, and position-based management
-- **Audio Player**: DCA-ready audio player with volume control, pause/resume, and current track tracking
-- **Voice channel management**: Thread-safe connection handling with fixed 15-second auto-disconnect timer
-- **Modular architecture**: Clean separation between voice management, queue system, audio providers, and playback
-- **Comprehensive error handling**: User-friendly error messages and proper resource cleanup
-- **Full test coverage**: Extensive unit tests for all music functionality with 100% coverage on core components
+- **Voice Management**: Thread-safe connection handling with auto-disconnect timer
+- **Format Intelligence**: Automatic best audio format selection (opus/webm preferred)
+
+#### **🔧 Production Features**
+- **Automatic Service Management**: yt-dlp service starts/stops with bot automatically
+- **Health Monitoring**: Continuous service health checking and status reporting
+- **Comprehensive Error Handling**: User-friendly error messages and proper resource cleanup
+- **Thread-Safe Operations**: All music operations are concurrent-safe
+- **Resource Management**: Proper cleanup and memory management
 
 ### System Features
 - Graceful shutdown on CTRL+C
@@ -187,6 +206,13 @@ The bot automatically loads environment variables from a `.env` file if present.
 
 #### `services/` Package
 - **`weather.go`**: OpenWeatherMap API integration and data structures
+- **`ytdlp/`**: Complete yt-dlp service integration:
+  - **`server.py`**: Python HTTP service wrapping yt-dlp functionality
+  - **`client.go`**: Go HTTP client with health checking and error recovery
+  - **`manager.go`**: Service process lifecycle management
+  - **`types.go`**: Type definitions and data structures
+  - **`resilience.go`**: Circuit breaker and retry patterns
+  - **`requirements.txt`**: Python dependencies
 
 #### `music/` Package
 - **`types/interfaces.go`**: Core music system interfaces and type definitions (AudioPlayer, Queue, AudioProvider, MusicManager)
@@ -194,7 +220,9 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **`manager/session_wrapper.go`**: Discord session wrapper for voice functionality
 - **`player/player.go`**: DCA audio player implementation with volume control and playback management
 - **`queue/queue.go`**: Thread-safe FIFO queue implementation with shuffle and position-based operations
-- **`providers/youtube.go`**: YouTube provider with URL parsing, metadata extraction, and search functionality
+- **`providers/youtube.go`**: Legacy YouTube provider (basic functionality)
+- **`providers/youtube_ytdlp.go`**: **Production YouTube provider** with full yt-dlp integration
+- **`manager/ytdlp_integration.go`**: Integration helpers for yt-dlp service management
 
 #### `utils/` Package
 - **`avatar.go`**: User avatar URL generation with fallbacks
@@ -215,8 +243,8 @@ The bot automatically loads environment variables from a `.env` file if present.
 
 ## Future Feature Roadmap
 
-### 🎵 Music System (Production Ready)
-**✅ Completed Core Features:**
+### 🎵 Music System (Infrastructure Complete - Debugging Phase)
+**✅ Completed Infrastructure:**
 - Voice channel join/leave with validation and error handling
 - **Full YouTube integration** with URL parsing, metadata extraction, and search functionality
 - **Complete `/play` command** with rich embeds and queue management
@@ -224,12 +252,13 @@ The bot automatically loads environment variables from a `.env` file if present.
 - **DCA-ready audio player** with volume control, pause/resume, and track management
 - **Queue system** with FIFO operations, shuffle, and position-based management
 - Session wrapper for voice functionality with fixed auto-disconnect timer
-- **Production-ready infrastructure** for audio streaming
+- **yt-dlp service integration** with HTTP client and service management
 
-**🚧 Next Phase - Audio Streaming:**
-- **Live audio playback** with DCA encoding and FFmpeg integration
-- **Real-time streaming** to Discord voice channels
-- **Buffer management** for smooth playback experience
+**🚧 Current Priority - Audio Streaming Fixes:**
+- **EOF Error Resolution**: Investigate YouTube stream URL lifetime and connection issues
+- **Stream Reconnection**: Implement robust reconnection for interrupted YouTube streams
+- **Alternative Audio Sources**: Test with non-YouTube sources to isolate issues
+- **Error Pattern Analysis**: Analyze timing and frequency of streaming failures
 
 **🎯 Future Enhancements:**
 - **Enhanced Commands**: `/queue`, `/skip`, `/pause`, `/resume`, `/stop`, `/volume`, `/now-playing`
