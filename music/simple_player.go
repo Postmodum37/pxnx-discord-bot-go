@@ -159,26 +159,55 @@ func (sp *SimplePlayer) extractTrackInfo(query string) (*AudioTrack, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Use yt-dlp to extract information
+	utils.LogInfo("Starting yt-dlp extraction for query: %s", query)
+
+	// Use yt-dlp to extract information with correct syntax
 	cmd := exec.CommandContext(ctx, "yt-dlp",
 		"--default-search", "ytsearch",
 		"--format", "bestaudio[ext=webm]/bestaudio",
-		"--get-title",
-		"--get-url",
-		"--get-duration",
-		"--get-thumbnail",
-		"--get-uploader",
+		"--print", "title",
+		"--print", "url",
+		"--print", "duration",
+		"--print", "thumbnail",
+		"--print", "uploader",
+		"--no-download",
 		query,
 	)
 
-	output, err := cmd.Output()
+	utils.LogDebug("Running yt-dlp command: %v", cmd.Args)
+
+	// Capture both stdout and stderr for better debugging
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("yt-dlp extraction failed: %w", err)
+		utils.LogError("yt-dlp command failed with exit code: %v", err)
+		utils.LogError("yt-dlp stderr: %s", stderr.String())
+		utils.LogError("yt-dlp stdout: %s", stdout.String())
+
+		// Check if yt-dlp is installed
+		if _, lookupErr := exec.LookPath("yt-dlp"); lookupErr != nil {
+			return nil, fmt.Errorf("yt-dlp not found in PATH - please install yt-dlp: %w", lookupErr)
+		}
+
+		return nil, fmt.Errorf("yt-dlp extraction failed: %w (stderr: %s)", err, stderr.String())
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	output := stdout.String()
+	utils.LogDebug("yt-dlp output: %s", output)
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	utils.LogDebug("yt-dlp output parsed into %d lines", len(lines))
+
+	for i, line := range lines {
+		utils.LogDebug("Line %d: %s", i, line)
+	}
+
 	if len(lines) < 5 {
-		return nil, fmt.Errorf("invalid yt-dlp output: expected 5 lines, got %d", len(lines))
+		utils.LogError("Invalid yt-dlp output: expected 5 lines, got %d", len(lines))
+		return nil, fmt.Errorf("invalid yt-dlp output: expected 5 lines, got %d. Output was: %s", len(lines), output)
 	}
 
 	track := &AudioTrack{
@@ -189,6 +218,7 @@ func (sp *SimplePlayer) extractTrackInfo(query string) (*AudioTrack, error) {
 		Uploader:  lines[4],
 	}
 
+	utils.LogInfo("Successfully extracted track: %s by %s (%s)", track.Title, track.Uploader, track.Duration)
 	return track, nil
 }
 
