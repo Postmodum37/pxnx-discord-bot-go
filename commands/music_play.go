@@ -68,11 +68,11 @@ func HandlePlayCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 		// Currently playing - added to queue
 		queuePosition := len(player.GetQueue())
 		content = fmt.Sprintf("🎵 Added to queue (position %d)", queuePosition)
-		embed = createTrackEmbed(track, "Added to Queue", 0x3498db) // Blue
+		embed = createTrackEmbed(track, "Added to Queue", 0x3498db, i.Member.User) // Blue
 	} else {
 		// Started playing immediately
 		content = "🎵 Now playing"
-		embed = createTrackEmbed(track, "Now Playing", 0x1db954) // Spotify green
+		embed = createTrackEmbed(track, "Now Playing", 0x1db954, i.Member.User) // Spotify green
 	}
 
 	// Edit the response with success
@@ -86,7 +86,7 @@ func HandlePlayCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 
 // Helper functions
 
-func createTrackEmbed(track *music.AudioTrack, title string, color int) *discordgo.MessageEmbed {
+func createTrackEmbed(track *music.AudioTrack, title string, color int, requestedBy *discordgo.User) *discordgo.MessageEmbed {
 	embed := &discordgo.MessageEmbed{
 		Title:       title,
 		Description: fmt.Sprintf("**[%s](%s)**", track.Title, track.URL),
@@ -99,13 +99,25 @@ func createTrackEmbed(track *music.AudioTrack, title string, color int) *discord
 			},
 			{
 				Name:   "Provider",
-				Value:  "YouTube",
+				Value:  "Youtube",
+				Inline: true,
+			},
+			{
+				Name:   "Requested by",
+				Value:  requestedBy.Username,
 				Inline: true,
 			},
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Simplified music player - no more EOF errors!",
+			Text: "Use /pause, /skip, or /stop to control playback",
 		},
+	}
+
+	// Add thumbnail if available
+	if track.Thumbnail != "" {
+		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
+			URL: track.Thumbnail,
+		}
 	}
 
 	return embed

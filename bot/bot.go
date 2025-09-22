@@ -28,6 +28,7 @@ func New(token string) (*Bot, error) {
 func (b *Bot) Setup() {
 	b.Session.AddHandler(b.ready)
 	b.Session.AddHandler(b.interactionCreate)
+	b.Session.AddHandler(b.voiceStateUpdate)
 	b.Session.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsGuildEmojis | discordgo.IntentsGuildVoiceStates
 
 	// Initialize the simplified music player
@@ -122,6 +123,17 @@ func (s *SimpleSessionWrapper) Channel(channelID string, options ...discordgo.Re
 
 func (s *SimpleSessionWrapper) State() *discordgo.State {
 	return s.session.State
+}
+
+// voiceStateUpdate handles voice state change events
+func (b *Bot) voiceStateUpdate(s *discordgo.Session, vsu *discordgo.VoiceStateUpdate) {
+	// Only process if we have a simple player
+	if commands.SimplePlayer == nil {
+		return
+	}
+
+	// Handle auto-disconnect when channel becomes empty
+	commands.SimplePlayer.HandleVoiceStateUpdate(vsu.GuildID)
 }
 
 // Global flag for command registration (will be set from main)

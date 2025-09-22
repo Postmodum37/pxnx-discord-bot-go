@@ -10,14 +10,16 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"pxnx-discord-bot/utils"
 )
 
 // SimplePlayer provides a simplified, reliable Discord music player
 // that replaces the complex DCA-based implementation with direct FFmpeg streaming
 type SimplePlayer struct {
-	session     *discordgo.Session
-	connections map[string]*VoicePlayer
-	mu          sync.RWMutex
+	session       *discordgo.Session
+	connections   map[string]*VoicePlayer
+	mu            sync.RWMutex
+	disconnectTimers map[string]*time.Timer
 }
 
 // VoicePlayer handles audio playback for a single Discord server
@@ -35,17 +37,19 @@ type VoicePlayer struct {
 
 // AudioTrack represents a playable audio track
 type AudioTrack struct {
-	Title    string `json:"title"`
-	URL      string `json:"url"`
-	Duration string `json:"duration"`
-	Uploader string `json:"uploader"`
+	Title     string `json:"title"`
+	URL       string `json:"url"`
+	Duration  string `json:"duration"`
+	Uploader  string `json:"uploader"`
+	Thumbnail string `json:"thumbnail"`
 }
 
 // NewSimplePlayer creates a new simplified music player
 func NewSimplePlayer(session *discordgo.Session) *SimplePlayer {
 	return &SimplePlayer{
-		session:     session,
-		connections: make(map[string]*VoicePlayer),
+		session:          session,
+		connections:      make(map[string]*VoicePlayer),
+		disconnectTimers: make(map[string]*time.Timer),
 	}
 }
 
@@ -162,7 +166,8 @@ func (sp *SimplePlayer) extractTrackInfo(query string) (*AudioTrack, error) {
 		"--get-title",
 		"--get-url",
 		"--get-duration",
-		"--get-description",
+		"--get-thumbnail",
+		"--get-uploader",
 		query,
 	)
 
@@ -172,17 +177,16 @@ func (sp *SimplePlayer) extractTrackInfo(query string) (*AudioTrack, error) {
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) < 2 {
-		return nil, fmt.Errorf("invalid yt-dlp output")
+	if len(lines) < 5 {
+		return nil, fmt.Errorf("invalid yt-dlp output: expected 5 lines, got %d", len(lines))
 	}
 
 	track := &AudioTrack{
-		Title: lines[0],
-		URL:   lines[1],
-	}
-
-	if len(lines) > 2 {
-		track.Duration = lines[2]
+		Title:     lines[0],
+		URL:       lines[1],
+		Duration:  lines[2],
+		Thumbnail: lines[3],
+		Uploader:  lines[4],
 	}
 
 	return track, nil
@@ -206,7 +210,7 @@ func (vp *VoicePlayer) playNext() {
 	// Play the track
 	err := vp.playTrack(track)
 	if err != nil {
-		fmt.Printf("Failed to play track %s: %v\n", track.Title, err)
+		utils.LogError("Failed to play track %s: %v", track.Title, err)
 	}
 
 	// Continue with next track
@@ -226,16 +230,16 @@ func (vp *VoicePlayer) playTrack(track AudioTrack) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Enhanced FFmpeg command with better error handling and reconnection
+	// Enhanced FFmpeg command with Opus output for Discord
 	vp.ffmpegCmd = exec.CommandContext(ctx, "ffmpeg",
 		"-reconnect", "1",
 		"-reconnect_streamed", "1",
 		"-reconnect_delay_max", "2",
 		"-i", track.URL,
-		"-f", "s16le",
+		"-f", "opus",
 		"-ar", "48000",
 		"-ac", "2",
-		"-application", "audio",
+		"-b:a", "128k",
 		"-vn",
 		"pipe:1",
 	)
@@ -254,8 +258,8 @@ func (vp *VoicePlayer) playTrack(track AudioTrack) error {
 	go func() {
 		defer stdout.Close()
 
-		// Create a buffer for audio data
-		buffer := make([]byte, 3840) // 20ms of 48kHz 16-bit stereo
+		// Create a buffer for Opus audio data
+		buffer := make([]byte, 4096) // Buffer for Opus packets
 
 		for {
 			select {
@@ -270,13 +274,13 @@ func (vp *VoicePlayer) playTrack(track AudioTrack) error {
 				n, err := stdout.Read(buffer)
 				if err != nil {
 					if err != io.EOF {
-						fmt.Printf("Error reading audio data: %v\n", err)
+						utils.LogError("Error reading audio data: %v", err)
 					}
 					return
 				}
 
 				if n > 0 {
-					// Send to Discord voice connection
+					// Send Opus audio data to Discord voice connection
 					select {
 					case vp.conn.OpusSend <- buffer[:n]:
 					case <-time.After(time.Millisecond * 100):
@@ -364,4 +368,66 @@ func (sp *SimplePlayer) GetPlayer(guildID string) (*VoicePlayer, bool) {
 
 	player, exists := sp.connections[guildID]
 	return player, exists
+}
+
+// HandleVoiceStateUpdate handles voice state changes for auto-disconnect
+func (sp *SimplePlayer) HandleVoiceStateUpdate(guildID string) {
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
+
+	_, exists := sp.connections[guildID]
+	if !exists {
+		return
+	}
+
+	// Get current guild state
+	guild, err := sp.session.State.Guild(guildID)
+	if err != nil {
+		utils.LogDebug("Failed to get guild state for auto-disconnect check: %v", err)
+		return
+	}
+
+	// Count non-bot users in the bot's voice channel
+	botUserID := sp.session.State.User.ID
+	var botChannelID string
+	humanCount := 0
+
+	for _, vs := range guild.VoiceStates {
+		if vs.UserID == botUserID {
+			botChannelID = vs.ChannelID
+		} else if vs.ChannelID != "" {
+			// Check if this user is in the same channel as the bot
+			if vs.ChannelID == botChannelID {
+				humanCount++
+			}
+		}
+	}
+
+	// If no humans in voice channel, start disconnect timer
+	if humanCount == 0 && botChannelID != "" {
+		utils.LogDebug("No humans in voice channel, starting 15-second disconnect timer for guild %s", guildID)
+
+		// Cancel existing timer if any
+		if timer, exists := sp.disconnectTimers[guildID]; exists {
+			timer.Stop()
+		}
+
+		// Start new timer
+		sp.disconnectTimers[guildID] = time.AfterFunc(15*time.Second, func() {
+			utils.LogInfo("Auto-disconnecting from empty voice channel in guild %s", guildID)
+			sp.LeaveChannel(guildID)
+
+			// Clean up timer
+			sp.mu.Lock()
+			delete(sp.disconnectTimers, guildID)
+			sp.mu.Unlock()
+		})
+	} else if humanCount > 0 {
+		// Humans joined, cancel disconnect timer
+		if timer, exists := sp.disconnectTimers[guildID]; exists {
+			utils.LogDebug("Humans joined voice channel, cancelling disconnect timer for guild %s", guildID)
+			timer.Stop()
+			delete(sp.disconnectTimers, guildID)
+		}
+	}
 }

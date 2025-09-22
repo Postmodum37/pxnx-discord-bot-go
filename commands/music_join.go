@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/discordgo"
+	"pxnx-discord-bot/utils"
 )
 
 // HandleJoinCommand handles the /join command using the simplified approach
@@ -20,38 +21,38 @@ func HandleJoinCommand(s SessionInterface, i *discordgo.InteractionCreate) error
 		// Try to get voice state from session state first
 		guild, err := state.Guild(i.GuildID)
 		if err == nil {
-			fmt.Printf("[DEBUG] Found %d voice states in session state\n", len(guild.VoiceStates))
+			utils.LogDebug("Found %d voice states in session state", len(guild.VoiceStates))
 			for _, vs := range guild.VoiceStates {
-				fmt.Printf("[DEBUG] Voice state: UserID=%s, ChannelID=%s\n", vs.UserID, vs.ChannelID)
+				utils.LogDebug("Voice state: UserID=%s, ChannelID=%s", vs.UserID, vs.ChannelID)
 				if vs.UserID == i.Member.User.ID {
 					userChannelID = vs.ChannelID
-					fmt.Printf("[DEBUG] Found user %s in voice channel %s via session state\n", vs.UserID, vs.ChannelID)
+					utils.LogDebug("Found user %s in voice channel %s via session state", vs.UserID, vs.ChannelID)
 					break
 				}
 			}
 		} else {
-			fmt.Printf("[DEBUG] Failed to get guild from session state: %v\n", err)
+			utils.LogDebug("Failed to get guild from session state: %v", err)
 		}
 	} else {
-		fmt.Printf("[DEBUG] Session state is nil\n")
+		utils.LogDebug("Session state is nil")
 	}
 
 	// If not found in state, try API call as fallback
 	if userChannelID == "" {
-		fmt.Printf("[DEBUG] User not found in session state, trying API call fallback\n")
+		utils.LogDebug("User not found in session state, trying API call fallback")
 		guild, err := s.Guild(i.GuildID)
 		if err != nil {
-			fmt.Printf("[DEBUG] Failed to get guild via API: %v\n", err)
+			utils.LogDebug("Failed to get guild via API: %v", err)
 			return respondWithInteraction(s, i, "Failed to get server information")
 		}
 
-		fmt.Printf("[DEBUG] Found %d voice states in API response\n", len(guild.VoiceStates))
+		utils.LogDebug("Found %d voice states in API response", len(guild.VoiceStates))
 		// Find the user's voice channel via API
 		for _, vs := range guild.VoiceStates {
-			fmt.Printf("[DEBUG] API Voice state: UserID=%s, ChannelID=%s\n", vs.UserID, vs.ChannelID)
+			utils.LogDebug("API Voice state: UserID=%s, ChannelID=%s", vs.UserID, vs.ChannelID)
 			if vs.UserID == i.Member.User.ID {
 				userChannelID = vs.ChannelID
-				fmt.Printf("[DEBUG] Found user %s in voice channel %s via API\n", vs.UserID, vs.ChannelID)
+				utils.LogDebug("Found user %s in voice channel %s via API", vs.UserID, vs.ChannelID)
 				break
 			}
 		}
