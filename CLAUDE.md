@@ -428,3 +428,5 @@ if err != nil {
 **Remember**: This project emphasizes **quality over speed**. Always prioritize proper testing, clean architecture, and maintainable code over quick implementations.
 
 - Always double-check package dependencies if they are legit, supported and maintained. Don't over use it, but use it where it seems necessary.
+- User proper logger when adding logging to code, found in ultis.
+- When commiting changes always check if README.md and CLAUDE.md are up to date.
